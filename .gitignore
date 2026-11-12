@@ -1,0 +1,9 @@
+# datos del curso
+datos/*
+!datos/README.md
+
+# entorno y generados
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store
