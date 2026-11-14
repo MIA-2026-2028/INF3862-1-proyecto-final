@@ -63,6 +63,17 @@ uv sync
 uv run jupyter lab
 ```
 
+## Verificar las cifras del informe E1
+
+Con el entorno levantado y los datos ubicados, desde la raíz del repositorio:
+
+```bash
+docker compose exec jupyter uv run python entregas/E1/anexos/verificacion_datos.py
+```
+
+Sin Docker: `uv run python entregas/E1/anexos/verificacion_datos.py`. Imprime
+el volumen de cada fuente y las cifras del universo del dashboard.
+
 ## Generar los informes PDF
 
 Los informes están escritos en LaTeX y se compilan con `latexmk`, que viene
@@ -94,7 +105,7 @@ docker-compose.yml servicio de Jupyter Lab en el puerto 8900
 latex/             preámbulo común de los informes
 assets/            logo de la portada
 datos/README.md    cómo obtener y ubicar los datos
-entregas/E1/       informe.tex, informe.pdf y anexos
+entregas/E1/       informe.tex, informe.pdf y anexos/verificacion_datos.py
 entregas/E2/       informe.tex, informe.pdf, src/ y anexos
 entregas/E3/       informe.tex, informe.pdf, src/ y anexos
 src/               código reutilizable de los notebooks
