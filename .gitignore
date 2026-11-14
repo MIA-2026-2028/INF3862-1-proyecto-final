@@ -7,3 +7,12 @@ datos/*
 __pycache__/
 .ipynb_checkpoints/
 .DS_Store
+
+# auxiliares de LaTeX (el PDF sí se versiona)
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz

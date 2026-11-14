@@ -1,0 +1,101 @@
+% Preámbulo común de los informes E1, E2 y E3, con aspecto de Word: Calibri,
+% paleta del tema de Office, bandas y portada.
+% Cada informe lo carga con \input{../../latex/preambulo.tex}.
+%   \portada[Alumnos]{sigla y curso}{tipo de entrega}{título}{autores}{fecha}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+% Carlito: mismas medidas que Calibri, la fuente de Word
+\usepackage[sfdefault,lining]{carlito}
+\usepackage[letterpaper,margin=2.2cm,top=2.8cm,bottom=2.8cm]{geometry}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc,shapes}
+\usepackage{eso-pic}
+\usepackage{titlesec}
+\usepackage{listings}
+\usepackage[hidelinks]{hyperref}
+\graphicspath{{../../assets/}}
+
+% paleta del tema de Office
+\definecolor{banda}{HTML}{4F81BD}
+\definecolor{titulo}{HTML}{2E75B5}
+\definecolor{subtitulo}{HTML}{5B9BD5}
+\definecolor{pizarra}{HTML}{273540}
+\definecolor{tablaencabezado}{HTML}{A3BAC2}
+\definecolor{fondosuave}{HTML}{DEEAF6}
+\definecolor{grisoffice}{HTML}{7F7F7F}
+\definecolor{vinotinto}{HTML}{7B1E2B}
+
+% texto agregado o cambiado por el asistente, pendiente de revisión del equipo
+\newcommand{\nuevo}[1]{\textcolor{vinotinto}{#1}}
+
+% títulos como los estilos de título de Word
+\titleformat{\section}{\large\bfseries\color{subtitulo}}{}{0pt}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{subtitulo}}{}{0pt}{}
+\titlespacing*{\section}{0pt}{2ex}{1ex}
+\titlespacing*{\subsection}{0pt}{1.5ex}{0.6ex}
+\setcounter{secnumdepth}{0}
+
+\setlist{itemsep=0.4ex,leftmargin=1.6em}
+\setlist[itemize]{label=\textbullet}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1ex}
+
+% tablas tipo Word: grilla completa y encabezado con fondo
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\enc}[1]{\cellcolor{tablaencabezado}#1}
+\newcommand{\iniciartabla}{\renewcommand{\arraystretch}{1.3}\arrayrulecolor{black!70}}
+
+% pregunta que abre una respuesta
+\newcommand{\pregunta}[1]{\textbf{\color{subtitulo}#1}}
+
+% SQL y pseudocódigo
+\lstset{basicstyle=\ttfamily\small,columns=fullflexible,keepspaces=true,
+  frame=single,rulecolor=\color{grisoffice},backgroundcolor=\color{fondosuave},
+  keywordstyle=\color{titulo}\bfseries,language=SQL,
+  morekeywords={BEGIN,COMMIT,ROLLBACK},literate={á}{{\'a}}1 {é}{{\'e}}1
+  {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1 {ñ}{{\~n}}1}
+
+% portada: bandas completas; páginas interiores: media banda arriba a la
+% izquierda, media banda abajo a la derecha con el número y logo de marca de agua
+\pagestyle{empty}
+\newif\ifenportada
+\AddToShipoutPictureBG{%
+  \ifenportada
+    \AtPageUpperLeft{\color{banda}\raisebox{-1.2cm}{\rule{\paperwidth}{0.6cm}}}%
+    \AtPageLowerLeft{\color{banda}\raisebox{0.6cm}{\rule{\paperwidth}{0.6cm}}}%
+  \else
+    \AtPageUpperLeft{\color{banda}\raisebox{-1.2cm}{\rule{0.62\paperwidth}{0.6cm}}}%
+    \AtPageLowerLeft{%
+      \put(\LenToUnit{0.45\paperwidth},\LenToUnit{0.6cm}){\color{banda}\rule{0.55\paperwidth}{0.6cm}}%
+      \put(\LenToUnit{0.45\paperwidth},\LenToUnit{0.78cm}){\hspace{0.2cm}\color{white}\small\thepage}%
+      \put(\LenToUnit{0.7cm},\LenToUnit{0.5cm}){\logomarcaagua}}%
+  \fi}
+\newcommand{\logomarcaagua}{\tikz\node[opacity=0.08,inner sep=0]{\includegraphics[width=2cm]{logo_uc.png}};}
+
+% \portada[rótulo]{sigla y curso}{tipo de entrega}{título}{autores}{fecha}
+\newcommand{\portada}[6][Alumno]{%
+  \global\enportadatrue
+  \begin{titlepage}
+    \centering
+    \vspace*{2.2cm}
+    \includegraphics[width=8cm]{logo_uc.png}\par\vspace{1.6cm}
+    {\large\bfseries\color{titulo} Magíster en Inteligencia Artificial - MIA\par}\vspace{0.4cm}
+    {\large\bfseries\color{subtitulo} Instituto de Ingeniería Matemática y Computacional - IMC\par}\vspace{0.5cm}
+    {\LARGE\bfseries\color{pizarra} #2\par}\vspace{0.5cm}
+    {\itshape\bfseries\color{subtitulo} #3\par}\vspace{0.2cm}
+    {\large #4\par}\vspace{0.2cm}
+    {\color{banda}\rule{0.8\textwidth}{0.6pt}\par}
+    \vspace{2cm}
+    \raggedright
+    {\textbf{#1:} #5\par}\vspace{0.3cm}
+    {\textbf{Fecha de entrega:} #6\par}
+    \vfill
+  \end{titlepage}
+  \global\enportadafalse}
