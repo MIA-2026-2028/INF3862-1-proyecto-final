@@ -1,8 +1,6 @@
 \documentclass[11pt]{article}
 \input{../../latex/preambulo.tex}
 
-\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
-
 \begin{document}
 
 \portada[Alumnos]{INF3862-1 Plataformas Big Data para Data Science}
@@ -45,8 +43,7 @@ Recursos & Un equipo de datos pequeño y presupuesto bajo. Los datos del proyect
 \textbf{Frecuencia cardíaca en reposo:} promedio de la frecuencia cardíaca entre
 las 2:00 y las 5:00, en la hora local del usuario y fuera de sesiones de
 actividad. Mide el pulso sin esfuerzo: fuera de sesiones, el promedio de todos los relojes
-es 60.1 latidos por minuto de madrugada y 78.5 entre las 12:00 y las 19:00. Un
-valor más bajo se interpreta como mejor indicador, sin valor diagnóstico.
+es 60.1 latidos por minuto de madrugada y 78.5 entre las 12:00 y las 19:00. Un valor más bajo se interpreta como mejor indicador.
 
 \textbf{Universo del dashboard:} 216 de los 300 usuarios. Los otros 84 no tienen
 ninguna medición entre las 23:00 y las 7:00, hora local: no usan el reloj de
@@ -58,41 +55,39 @@ las tablas.
 
 \section{4.2 Fuentes y recepción de datos}
 
-\textbf{¿Se interpreta el esquema al escribir o al leer, y por qué?} Al escribir
+\pregunta{¿Se interpreta el esquema al escribir o al leer, y por qué?} Al escribir
 en las fuentes que crea la aplicación (recetas, comidas, dispositivos): las
 reglas de integridad se validan en la transacción y un registro inválido se
 rechaza antes de afectar la operación. Al leer en las que llegan del reloj
 (sesiones y mediciones): Pulso S envía \texttt{frecuencia\_cardiaca} y fecha ISO
 8601, y FitBand 2 envía \texttt{fc} y milisegundos desde 1970. Guardar el lote
-original y mapear los nombres al procesarlo permite reprocesar si cambia una
-regla o aparece un modelo nuevo, sin perder lo recibido.
+original y mapear los nombres al procesarlo permite reprocesar si cambia una regla o aparece un modelo nuevo.
 
 \begingroup\iniciartabla\footnotesize
-\begin{tabularx}{\textwidth}{|L{1.6cm}|L{2.6cm}|Y|Y|Y|}\hline
+\begin{tabularx}{\textwidth}{|L{1.75cm}|L{2.7cm}|Y|Y|Y|}\hline
 \enc{\textbf{Fuente}} & \enc{\textbf{Registro y tipo}} &
 \enc{\textbf{Volumen y crecimiento}} & \enc{\textbf{Recepción}} &
 \enc{\textbf{Problemas esperados}}\\\hline
 Recetas & Una receta. Estructurado, con columnas de listas &
-522517 filas, 178.7 MB. Unas 70 mil nuevas al año (70204 publicadas en 2007) &
-Transacción en línea al publicar; hacia el análisis, batch diario &
-Duraciones como texto (PT45M); una edición cambia la nutrición de comidas ya registradas\\\hline
-Comidas & Una receta preparada por un usuario. Estructurado &
+522517 filas en 178.7 MB; unas 5850 nuevas por mes (70204 en 2007) &
+Al publicar, transacción en línea; hacia el análisis, batch diario con latencia de un día &
+Duración en texto (PT45M); editar una receta cambia la nutrición de comidas ya registradas\\\hline
+Comidas & Una receta que prepara un usuario. Estructurado &
 22106 filas, 1.0 MB. Unas 362 por día con 300 usuarios &
-Transacción en línea en segundos; hacia el análisis, batch diario &
+Transacción en línea en segundos; hacia el análisis, batch diario con latencia de un día &
 Recetas fuera del catálogo (48 comidas); la misma comida enviada dos veces\\\hline
 Dispositivos & Un reloj vinculado a un usuario. Estructurado &
-315 relojes de 300 usuarios, 15 desvinculados &
-Transacción en línea al vincular o desvincular &
+315 relojes de 300 usuarios, 15 desvinculados. 77 vinculaciones en los 61 días, unas 38 por mes &
+Transacción en línea al vincular o desvincular, en segundos &
 Usuarios con más de un reloj, cuyas mediciones se suman al mismo usuario\\\hline
 Sesiones & Una actividad. Semiestructurado (JSON) &
 4840 filas, 0.8 MB. Unas 79 por día &
 Lotes en cada sincronización; latencia aceptable de horas &
-Distancia nula en fuerza, repetidas por reintentos\\\hline
-Mediciones & Una medición del reloj. Semiestructurado (JSON comprimido) &
-15540132 filas, 115.5 MB. Unas 254756 por día (1.9 MB) &
-Lotes por sincronización, por hora de recepción; latencia aceptable de horas &
-Lotes atrasados, repetidas, frecuencia cardíaca nula (2.3\%), nombres de campo y formato de fecha distintos por modelo,
-muestreo de 1 min, 5 min o 10 s\\\hline
+Sesiones repetidas por reintentos; distancia nula en las de fuerza, que es válida\\\hline
+Mediciones & Una medición en JSON comprimido. Semiestructurado &
+15540132 filas en 115.5 MB; unas 254756 por día, que ocupan 1.9 MB &
+Lotes en cada sincronización, guardados por hora de recepción; latencia aceptable de horas &
+Lotes atrasados y repetidos; frecuencia cardíaca nula en 2.3\%; nombres de campo y fechas distintos por modelo; muestreo de 1 min, 5 min o 10 s\\\hline
 \end{tabularx}
 \endgroup
 
@@ -121,9 +116,9 @@ muestreo de 1 min, 5 min o 10 s\\\hline
   reintento.
 \end{itemize}
 
-\textbf{¿Qué regla de integridad exige una transacción?} Un reloj está
+\pregunta{¿Qué regla de integridad exige una transacción?} Un reloj está
 vinculado a un solo usuario a la vez: al vincularlo a otro usuario, cerrar el
-vínculo anterior y abrir el nuevo son una unidad (consulta 1 del anexo). La figura~\ref{fig:er} muestra el diagrama entidad-relación.
+vínculo anterior y abrir el nuevo son una unidad (consulta 1 del anexo A; diagrama entidad-relación en la figura~\ref{fig:er}).
 
 \subsection{b) Nivel analítico (OLAP)}
 
@@ -144,24 +139,22 @@ vínculo anterior y abrir el nuevo son una unidad (consulta 1 del anexo). La fig
   porciones de la comida.
 \end{itemize}
 
-\textbf{¿Dónde viven los datos crudos y los analíticos, y en qué formato?} En un
+\pregunta{¿Dónde viven los datos crudos y los analíticos, y en qué formato?} En un
 Lakehouse. Los lotes originales quedan en almacenamiento de objetos tal como
 llegan (JSON comprimido y CSV), para reprocesarlos con schema-on-read. Las tablas analíticas son tablas Delta (archivos Parquet y un registro de transacciones): las mediciones unificadas y sin repetidos, los hechos y las dimensiones. Cuando un lote atrasado obliga a reescribir un
 día, el cambio se confirma como una unidad y el dashboard no lee un día a medio reescribir. Un Warehouse tradicional guarda datos ya integrados y dejaría fuera los
 JSON originales que se necesitan para reprocesar.
 
-\textbf{¿Qué organización física y partición se proponen?} Por columnas
-(Parquet): el dashboard lee pocas medidas de muchas filas, y el formato
-columnar lee solo esas columnas y las comprime. Las mediciones unificadas se particionan por fecha de medición, de modo que recalcular un día afectado por
-un lote atrasado lee solo ese día. Los hechos se particionan por mes, y las
-consultas con rango de fechas podan los meses que no piden.
+\pregunta{¿Qué organización física y partición se proponen?} Por columnas
+(Parquet): el dashboard lee pocas medidas de muchas filas, y el formato columnar puede leer solo esas columnas y comprimirlas. Las mediciones unificadas se particionan por fecha de medición, de modo que recalcular un día afectado por
+un lote atrasado lee solo ese día. Los hechos se particionan por mes, y las consultas con filtro de fechas (4 y 5) podan los meses que no piden.
 
 \section{4.4 Consultas de ejemplo}
 
 El anexo A trae el pseudocódigo y la justificación de cada consulta.
 
 \begingroup\iniciartabla\small
-\begin{tabularx}{\textwidth}{|c|Y|L{2cm}|L{3.3cm}|}\hline
+\begin{tabularx}{\textwidth}{|c|Y|L{2.2cm}|L{4.6cm}|}\hline
 \enc{\textbf{N.}} & \enc{\textbf{Propósito y usuario}} &
 \enc{\textbf{Clasificación}} & \enc{\textbf{Qué la haría rápida}}\\\hline
 1 & Vincular un reloj a un usuario (la aplicación) & OLTP, escribe &
@@ -181,16 +174,16 @@ precalculado\\\hline
 \end{tabularx}
 \endgroup
 
-\textbf{¿Qué pasaría sin transacción en la consulta 1?} Si la escritura falla
+\pregunta{¿Qué pasaría sin transacción en la consulta 1?} Si la escritura falla
 después de cerrar el vínculo anterior, el reloj queda sin usuario y sus
 mediciones no se asignan a nadie. Si dos vinculaciones del mismo reloj corren a
 la vez, ambas pueden ver el reloj libre y dejar dos vínculos abiertos.
 
-\textbf{¿Cómo se clasifica la consulta 7 y dónde se ejecuta?} Agrega hasta 1440 mediciones del día con Pulso S, como una consulta OLAP, pero la ejecuta la aplicación para
+\pregunta{¿Cómo se clasifica la consulta 7 y dónde se ejecuta?} Agrega hasta 1440 mediciones del día con Pulso S, como una consulta OLAP, pero la ejecuta la aplicación para
 un solo usuario, con todos los usuarios activos a la vez y latencia de segundos, como
 una OLTP. Se clasifica como OLTP sobre un resumen precalculado: la base de
 series temporales actualiza un acumulado por reloj y día al recibir cada lote,
-y la aplicación lee una fila. Así no se suman las mediciones del día en cada apertura, y el cálculo no corre en la base relacional que registra comidas y vínculos.
+y la aplicación lee una fila. Así no se suman las mediciones en cada apertura ni se carga la base relacional de comidas y vínculos.
 
 \clearpage
 \section{4.5 Arquitectura inicial}
@@ -223,12 +216,13 @@ y la aplicación lee una fila. Así no se suman las mediciones del día en cada 
 \draw[flecha] (reloj) -- (lotes);
 \draw[flecha] (api) -- (rel);
 \draw[flecha] (lotes) -- (st);
-\draw[flecha] (lotes.south) |- ([yshift=-0.4cm]obj.south) -- (obj.south);
+\draw[flecha] (st.south) |- ([yshift=-0.6cm]appc.south) -- (appc.south);
+% la línea de abajo cruza a la de series temporales: un borde blanco marca el cruce
+\draw[flecha,preaction={draw=white,line width=7pt}] (lotes.south) |- ([yshift=-1.3cm]obj.south) -- (obj.south);
 \draw[flecha] (rel.south east) -- node[right,font=\scriptsize,pos=0.3]{batch diario} (obj.north west);
 \draw[flecha] (obj) -- (delta);
 \draw[flecha] (delta) -- (dash);
 \draw[flecha] (delta) -- (nb);
-\draw[flecha] (st.south) |- ([yshift=-0.8cm]appc.south) -- (appc.south);
 \end{tikzpicture}
 \caption{Arquitectura inicial por capacidades. La carga al almacenamiento analítico es batch y diaria, porque el dashboard se actualiza una vez al día.}\label{fig:arquitectura}
 \end{figure}
@@ -279,8 +273,7 @@ COMMIT;                              -- ante un error: ROLLBACK
 
 \par\noindent\begin{minipage}{\linewidth}\setlength{\parskip}{1ex}
 \textbf{Consulta 2. Registrar una comida.} La ejecuta la aplicación cuando el
-usuario marca una receta como preparada. OLTP: escribe una fila, unas 362 veces
-al día con 300 usuarios, con latencia de milisegundos. Las claves foráneas
+usuario marca una receta como preparada. OLTP: escribe una fila, unas 362 veces al día con 300 usuarios, con latencia de milisegundos y muchos usuarios a la vez. Las claves foráneas
 rechazan una receta inexistente. Rápida con índices en las claves foráneas.
 \begin{lstlisting}
 INSERT INTO comida (usuario_id, receta_id, fecha_hora, porciones)
@@ -301,8 +294,7 @@ WHERE c.usuario_id = :usuario AND c.fecha_hora >= :inicio_del_dia;
 \par\noindent\begin{minipage}{\linewidth}\setlength{\parskip}{1ex}
 \textbf{Consulta 4. Hábitos por cuartil de frecuencia cardíaca en reposo.}
 Responde el objetivo de 4.1; la ejecuta el dashboard del equipo de nutrición.
-OLAP: lee todas las filas de \texttt{hecho\_usuario\_dia} del período (hasta 13176 con los 216 usuarios del universo y 61 días) y agrega, una vez al día, sin exigencia de
-segundos. Rápida con almacenamiento columnar, que lee solo las medidas usadas,
+OLAP: lee todas las filas de \texttt{hecho\_usuario\_dia} del período (hasta 13176 con los 216 usuarios del universo y 61 días) y agrega, una vez al día, con latencia aceptable de minutos y una sola ejecución a la vez. Rápida con almacenamiento columnar, que lee solo las medidas usadas,
 y partición por mes, que poda los meses fuera del período.
 \begin{lstlisting}
 WITH perfil AS (
@@ -324,8 +316,7 @@ FROM cuartil_usuario GROUP BY cuartil;
 \par\noindent\begin{minipage}{\linewidth}\setlength{\parskip}{1ex}
 \textbf{Consulta 5. Pasos semanales por modelo de reloj.} La ejecuta un
 analista para revisar si los dos modelos, que miden con distinta frecuencia,
-reportan pasos comparables. OLAP: lee todo el período y agrupa por semana y
-modelo, de forma ocasional. Rápida con almacenamiento columnar y partición por
+reportan pasos comparables. OLAP: lee todas las filas de \texttt{hecho\_usuario\_dia} del período (hasta 18300 con 300 usuarios y 61 días) y agrupa por semana y modelo, de forma ocasional, con latencia aceptable de minutos y un analista a la vez. Rápida con almacenamiento columnar y partición por
 mes.
 \begin{lstlisting}
 SELECT f.semana, r.modelo, AVG(h.pasos) AS pasos_promedio
@@ -337,8 +328,7 @@ GROUP BY f.semana, r.modelo;
 
 \par\noindent\begin{minipage}{\linewidth}\setlength{\parskip}{1ex}
 \textbf{Consulta 6. Recetas más preparadas por cuartil.} La ejecuta el equipo
-de nutrición para elegir qué recetas promover. OLAP: lee todas las comidas del
-período (22106 en 61 días) y agrupa, una vez al día. Rápida con almacenamiento
+de nutrición para elegir qué recetas promover. OLAP: lee todas las comidas del período (22106 en 61 días) y agrupa, una vez al día, con latencia aceptable de minutos y una sola ejecución a la vez. Rápida con almacenamiento
 columnar.
 \begin{lstlisting}
 SELECT p.cuartil, d.nombre, COUNT(*) AS veces
@@ -351,10 +341,7 @@ ORDER BY p.cuartil, veces DESC;      -- las 10 primeras de cada cuartil
 
 \par\noindent\begin{minipage}{\linewidth}\setlength{\parskip}{1ex}
 \textbf{Consulta 7. Resumen de hoy de un usuario (frontera).} La ejecuta la
-aplicación al abrir la pantalla del día. Agrega las mediciones del día, una por
-minuto con Pulso S, pero para un solo usuario, muchas veces al día y
-con latencia de segundos. Rápida con un resumen precalculado: el acumulado por
-reloj y día se actualiza al recibir cada lote.
+aplicación al abrir la pantalla del día. Escribe el acumulado al recibir cada lote y la aplicación lee una fila, muchas veces al día, con latencia de segundos y todos los usuarios activos a la vez. Sin el resumen sumaría hasta 1440 mediciones del día con Pulso S. Rápida con el resumen precalculado por reloj y día.
 \begin{lstlisting}
 -- al recibir un lote (base de series temporales)
 UPSERT acumulado_dia (device_id, fecha, pasos, calorias)
@@ -364,7 +351,29 @@ SELECT pasos, calorias FROM acumulado_dia
 WHERE device_id = :reloj AND fecha = :hoy;
 \end{lstlisting}\end{minipage}\par\medskip
 
-\section{Anexo B. Origen de las cifras}
+\section{Anexo B. Estructuras de datos}
+
+\begingroup\iniciartabla\footnotesize
+\begin{tabularx}{\textwidth}{|L{2.6cm}|L{1.7cm}|L{2.4cm}|Y|}\hline
+\enc{\textbf{Tabla}} & \enc{\textbf{Nivel}} & \enc{\textbf{Modelo}} &
+\enc{\textbf{Claves y columnas}}\\\hline
+usuario & OLTP & Relacional & \texttt{usuario\_id} PK; nombre, zona\_horaria\\\hline
+receta & OLTP & Relacional & \texttt{receta\_id} PK, \texttt{autor\_id} FK a usuario; nombre, categoría, porciones, calorías, grasa saturada, sodio, azúcar, fibra, proteína\\\hline
+comida & OLTP & Relacional & \texttt{comida\_id} PK, \texttt{usuario\_id} FK, \texttt{receta\_id} FK; fecha\_hora, porciones\\\hline
+reloj & OLTP & Relacional & \texttt{device\_id} PK; modelo\\\hline
+vinculación & OLTP & Relacional & \texttt{vinculacion\_id} PK, \texttt{device\_id} FK, \texttt{usuario\_id} FK; desde, hasta\\\hline
+sesión & OLTP & Relacional & \texttt{session\_id} PK, \texttt{device\_id} FK; tipo, inicio, fin, distancia\_km, calorías\\\hline
+medición & OLTP & Series temporales & \texttt{device\_id} y \texttt{ts\_medicion} PK; ts\_recepcion, frecuencia\_cardiaca, pasos, calorías\\\hline
+acumulado\_dia & OLTP & Series temporales & \texttt{device\_id} y fecha PK; pasos, calorías\\\hline
+mediciones unificadas & OLAP & Tabla Delta, partición por fecha de medición & \texttt{device\_id} y \texttt{ts\_medicion}; frecuencia\_cardiaca, pasos, calorías, modelo\\\hline
+hecho\_usuario\_dia & OLAP & Tabla Delta, partición por mes & \texttt{usuario\_key}, \texttt{fecha\_key}, \texttt{reloj\_key}; pasos, minutos de sesión, calorías gastadas, frecuencia cardíaca en reposo, número de comidas, nutrientes consumidos\\\hline
+hecho\_comida & OLAP & Tabla Delta, partición por mes & \texttt{usuario\_key}, \texttt{receta\_key}, \texttt{fecha\_key}; porciones, nutrientes consumidos\\\hline
+dim\_fecha, dim\_usuario, dim\_reloj, dim\_receta & OLAP & Tablas Delta & Fecha (día, día de la semana, semana, mes); usuario (zona horaria); reloj (modelo); receta (nombre, categoría, nutrientes por porción)\\\hline
+\end{tabularx}
+\endgroup
+
+\section{Anexo C. Origen de las cifras}
+
 
 Las cifras del informe se calculan con
 \texttt{entregas/E1/anexos/verificacion\_datos.py} sobre los datos del curso.

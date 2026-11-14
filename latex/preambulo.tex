@@ -13,6 +13,9 @@
 \usepackage{array}
 \usepackage{colortbl}
 \usepackage{tabularx}
+\usepackage{microtype}  % reparte el justificado en letras y espacios: menos huecos en columnas angostas
+\usepackage{ragged2e}
+\setlength{\JustifyingParindent}{0pt}  % sin sangría, como el resto del texto
 \usepackage{enumitem}
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta,calc,shapes}
@@ -27,7 +30,7 @@
 \definecolor{titulo}{HTML}{2E75B5}
 \definecolor{subtitulo}{HTML}{5B9BD5}
 \definecolor{pizarra}{HTML}{273540}
-\definecolor{tablaencabezado}{HTML}{A3BAC2}
+\definecolor{tablaencabezado}{HTML}{DEEAF6}  % el azul claro de los diagramas
 \definecolor{fondosuave}{HTML}{DEEAF6}
 \definecolor{grisoffice}{HTML}{7F7F7F}
 \definecolor{vinotinto}{HTML}{7B1E2B}
@@ -45,10 +48,12 @@
 \setlist{itemsep=0.4ex,leftmargin=1.6em}
 \setlist[itemize]{label=\textbullet}
 \setlength{\parindent}{0pt}
-\setlength{\parskip}{1ex}
+\setlength{\parskip}{8pt plus 2pt}  % espacio después de párrafo de Word
 
 % tablas tipo Word: grilla completa y encabezado con fondo
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+% celdas justificadas como el resto del texto; Y es la columna flexible de tabularx
+\newcolumntype{L}[1]{>{\justifying\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\justifying\arraybackslash}X}
 \newcommand{\enc}[1]{\cellcolor{tablaencabezado}#1}
 \newcommand{\iniciartabla}{\renewcommand{\arraystretch}{1.3}\arrayrulecolor{black!70}}
 

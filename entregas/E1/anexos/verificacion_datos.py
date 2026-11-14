@@ -43,7 +43,8 @@ print("Días de recepción:", dias)
 
 recetas = valor(f"select count(*) from '{RECETAS}'")[0]
 recetas_2007 = valor(f"select count(*) from '{RECETAS}' where year(DatePublished) = 2007")[0]
-print("Recetas:", recetas, "|", round(megabytes(RECETAS), 1), "MB | publicadas en 2007:", recetas_2007)
+print("Recetas:", recetas, "|", round(megabytes(RECETAS), 1), "MB | publicadas en 2007:", recetas_2007,
+      "| por mes:", round(recetas_2007 / 12))
 
 comidas = valor(f"select count(*) from read_csv_auto('{COMIDAS}')")[0]
 comidas_sin_receta = valor(f"""
@@ -55,7 +56,12 @@ print("Comidas:", comidas, "|", round(megabytes(COMIDAS), 1), "MB | por día:", 
 relojes, usuarios, desvinculados = valor(f"""
     select count(*), count(distinct AuthorId), count(fecha_desvinculacion)
     from read_csv_auto('{DISPOSITIVOS}')""")
-print("Relojes:", relojes, "| usuarios:", usuarios, "| desvinculados:", desvinculados)
+# vinculaciones dentro del período de las mediciones
+vinculaciones = valor(f"""
+    select count(*) from read_csv_auto('{DISPOSITIVOS}')
+    where fecha_vinculacion >= (select min(fecha_hora) from read_csv_auto('{COMIDAS}'))""")[0]
+print("Relojes:", relojes, "| usuarios:", usuarios, "| desvinculados:", desvinculados,
+      "| vinculaciones en el período:", vinculaciones, "| por mes:", round(vinculaciones / dias * 30))
 
 sesiones = valor(f"select count(*) from read_json_auto('{SESIONES}')")[0]
 print("Sesiones:", sesiones, "|", round(megabytes(SESIONES), 1), "MB | por día:", round(sesiones / dias))
