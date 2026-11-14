@@ -41,6 +41,28 @@ no causas ni recomendaciones médicas.
 | [E2](entregas/E2/) Ingesta y procesamiento | 30 de noviembre de 2026 | Pipeline en notebook, capas, calidad y análisis de escala |
 | [E3](entregas/E3/) Datos para ML y arquitectura final | 14 de diciembre de 2026 | Dataset de modelamiento, modelo base, arquitectura y operación |
 
+## Preparar el entorno
+
+Las dependencias están en `pyproject.toml` y sus versiones exactas en
+`uv.lock`. Primero, ubicar los datos según [datos/README.md](datos/README.md).
+
+Con Docker, sin instalar Python en el equipo:
+
+```bash
+docker compose up -d --build
+```
+
+Jupyter Lab queda en http://localhost:8900/lab?token=inf3862-proyecto, con el
+repositorio completo en la carpeta de trabajo. Se detiene con
+`docker compose down`.
+
+Con uv instalado en el equipo:
+
+```bash
+uv sync
+uv run jupyter lab
+```
+
 ## Generar los informes PDF
 
 Los informes están escritos en LaTeX y se compilan con `latexmk`, que viene
@@ -66,6 +88,9 @@ entrega correspondiente. La portada, los colores y el formato comunes están en
 
 ```
 decisiones.md      registro de decisiones del proyecto
+pyproject.toml     dependencias de Python; uv.lock fija sus versiones
+Dockerfile         imagen con uv y Jupyter Lab
+docker-compose.yml servicio de Jupyter Lab en el puerto 8900
 latex/             preámbulo común de los informes
 assets/            logo de la portada
 datos/README.md    cómo obtener y ubicar los datos

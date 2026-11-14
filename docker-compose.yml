@@ -1,0 +1,10 @@
+services:
+  jupyter:
+    build: .
+    container_name: inf3862-proyecto-jupyter
+    ports:
+      - "8900:8888"
+    volumes:
+      - .:/proyecto
+    environment:
+      JUPYTER_TOKEN: "inf3862-proyecto"
