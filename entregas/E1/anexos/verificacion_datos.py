@@ -9,9 +9,19 @@ datos/README.md:
 import glob
 import os
 
-import duckdb
+try:
+    import duckdb
+except ImportError:
+    duckdb = None
 
-DATOS = "datos/datos_proyecto_INF3862"       # carpeta de los datos del curso
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[3]
+DATOS = os.environ.get("INF3862_DATA_DIR") or str(ROOT / "datos" / "datos_proyecto_INF3862")
+if not os.path.isdir(DATOS):
+    sibling = ROOT.parent / "datos_proyecto_INF3862"
+    if sibling.is_dir():
+        DATOS = str(sibling)
 HORAS_NOCHE = (2, 4)                         # 2:00 a 4:59, hora local
 HORAS_TARDE = (12, 18)                       # 12:00 a 18:59, hora local
 MINUTOS_MIN_HORA = {"Pulso S": 30, "FitBand 2": 6}  # media hora de mediciones por modelo
@@ -24,6 +34,19 @@ MEDICIONES = f"{DATOS}/wearable/mediciones/*/*.jsonl.gz"
 
 if not os.path.exists(RECETAS):
     raise SystemExit("Faltan los datos: ver datos/README.md")
+
+if duckdb is None:
+    report = ROOT / "datos" / "processed" / "e2" / "quality_report.json"
+    print("DuckDB no está instalado; no se recalculan las consultas de E1.")
+    if report.exists():
+        import json
+        quality = json.loads(report.read_text(encoding="utf-8"))
+        print("Conteos verificados por el pipeline E2:")
+        print(json.dumps(quality["counts"], ensure_ascii=False, indent=2))
+        print("Las cifras de Food.com y las métricas nocturnas de E1 requieren DuckDB.")
+    else:
+        print("Ejecuta primero el pipeline E2 para obtener conteos verificables.")
+    raise SystemExit(0)
 
 
 def megabytes(patron):
