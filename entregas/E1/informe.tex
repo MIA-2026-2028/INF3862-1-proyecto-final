@@ -334,7 +334,7 @@ GROUP BY f.semana, r.modelo;
 
 \par\noindent\begin{minipage}{\linewidth}\setlength{\parskip}{1ex}
 \textbf{Consulta 6. Recetas más preparadas por cuartil.} La ejecuta el equipo
-de nutrición para elegir qué recetas promover. OLAP: lee todas las comidas del período (22106 en 61 días) y agrupa, una vez al día, con latencia aceptable de minutos y una sola ejecución a la vez. Rápida con almacenamiento
+de nutrición para elegir qué recetas promover. OLAP: lee todas las comidas del período (22106 en 61 días)\footnote{\nuevo{Lee las 22106 comidas, pero cuenta 15889: las de los 216 usuarios del universo, los únicos con cuartil, y con receta en el catálogo. Quedan fuera las de los 84 usuarios sin mediciones de madrugada y las 36 del universo cuya receta no está en el catálogo.}} y agrupa, una vez al día, con latencia aceptable de minutos y una sola ejecución a la vez. Rápida con almacenamiento
 columnar.
 \begin{lstlisting}
 WITH perfil AS (

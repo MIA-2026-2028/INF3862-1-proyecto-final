@@ -142,6 +142,13 @@ dias_universo, dias_sin_noche = valor("""
     where usuario in (select usuario from por_usuario where noches > 0)""")
 print("Días del universo con datos:", dias_universo, "| sin mediciones de madrugada:", dias_sin_noche)
 
+# la consulta 6 solo cuenta comidas de usuarios con cuartil (el universo) y con receta en el catálogo
+comidas_universo, comidas_consulta_6 = valor(f"""
+    select count(*), count(*) filter (where RecipeId in (select RecipeId from '{RECETAS}'))
+    from read_csv_auto('{COMIDAS}')
+    where AuthorId in (select usuario from por_usuario where noches > 0)""")
+print("Comidas del universo:", comidas_universo, "de", comidas, "| con receta en el catálogo:", comidas_consulta_6)
+
 hora_min, hora_max = valor("""
     select min(hora), max(hora) from por_hora
     where usuario in (select usuario from por_usuario where noches = 0)""")
