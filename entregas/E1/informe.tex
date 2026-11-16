@@ -13,10 +13,10 @@
 
 \section{4.1 Objetivo final del proyecto}
 
-\nuevo{El proyecto compara los hábitos de actividad y de alimentación de los
+El proyecto compara los hábitos de actividad y de alimentación de los
 usuarios de la aplicación según su frecuencia cardíaca en reposo, el indicador
 de salud que el proyecto toma del reloj. Los resultados describen asociaciones
-en los datos, no causas ni diagnósticos.}
+en los datos, no causas ni diagnósticos.
 
 \begingroup\iniciartabla\small
 \begin{tabularx}{\textwidth}{|L{2.3cm}|Y|}\hline
@@ -39,15 +39,15 @@ esperar horas. Se toleran lotes que llegan tarde si se recalculan los días que
 afectan. No se toleran mediciones duplicadas: cada medición trae los pasos dados desde
 la anterior, y una repetida los suma dos veces. Una
 frecuencia cardíaca nula se excluye del cálculo, no se rellena.\\\hline
-Recursos & \nuevo{Equipo de datos pequeño y presupuesto bajo; los 296 MB de datos del proyecto caben en una máquina.}\\\hline
+Recursos & Equipo de datos pequeño y presupuesto bajo; los 296 MB de datos del proyecto caben en una máquina.\\\hline
 \end{tabularx}
 \endgroup
 
 \textbf{Frecuencia cardíaca en reposo:} promedio de la frecuencia cardíaca entre
 las 2:00 y las 5:00, en la hora local del usuario y fuera de sesiones de
 actividad. Mide el pulso sin esfuerzo: fuera de sesiones, el promedio de todos los relojes
-es 60.1 latidos por minuto de madrugada y 78.5 entre las 12:00 y las 19:00. \nuevo{Un valor más bajo se interpreta como mejor; solo ordena a los usuarios
-y no es un diagnóstico.}
+es 60.1 latidos por minuto de madrugada y 78.5 entre las 12:00 y las 19:00. Un valor más bajo se interpreta como mejor; solo ordena a los usuarios
+y no es un diagnóstico.
 
 \textbf{Universo del dashboard:} 216 de los 300 usuarios. Los otros 84 no tienen
 ninguna medición entre las 23:00 y las 7:00, hora local: no usan el reloj de
@@ -101,7 +101,7 @@ Lotes atrasados y repetidos; frecuencia cardíaca nula en 2.3\%; nombres de camp
 
 \begin{itemize}
   \item \textbf{Usuario} (\texttt{usuario\_id} PK, nombre, zona\_horaria),
-  \textbf{receta} (\texttt{receta\_id} PK, \nuevo{\texttt{publicada\_por} FK a usuario},
+  \textbf{receta} (\texttt{receta\_id} PK, \texttt{publicada\_por} FK a usuario,
   nombre, categoría, porciones, calorías, grasa saturada, sodio, azúcar, fibra,
   proteína) y \textbf{comida} (\texttt{comida\_id} PK, \texttt{usuario\_id} FK,
   \texttt{receta\_id} FK, fecha\_hora, porciones). Modelo relacional: la
@@ -121,9 +121,9 @@ Lotes atrasados y repetidos; frecuencia cardíaca nula en 2.3\%; nombres de camp
 \end{itemize}
 
 \pregunta{¿Qué regla de integridad exige una transacción?} Un reloj está
-vinculado a un solo usuario a la vez: al vincularlo a otro usuario, cerrar el vínculo anterior y abrir el nuevo son una unidad, \nuevo{y un índice único
+vinculado a un solo usuario a la vez: al vincularlo a otro usuario, cerrar el vínculo anterior y abrir el nuevo son una unidad, y un índice único
 sobre \texttt{device\_id} con \texttt{hasta IS NULL} rechaza un segundo vínculo
-abierto aunque dos transacciones corran a la vez} (consulta 1 del anexo A;
+abierto aunque dos transacciones corran a la vez (consulta 1 del anexo A;
 diagrama entidad-relación en la figura~\ref{fig:er}).
 
 \subsection{b) Nivel analítico (OLAP)}
@@ -135,14 +135,14 @@ diagrama entidad-relación en la figura~\ref{fig:er}).
   azúcar, fibra y proteína consumidas. Claves: \texttt{usuario\_key} y
   \texttt{fecha\_key}. La frecuencia cardíaca en reposo queda nula si el día no
   tiene cobertura nocturna suficiente.
-  \item \textbf{Hecho \texttt{hecho\allowbreak\_usuario\allowbreak\_reloj\allowbreak\_dia}:} una fila por usuario, día y reloj. \nuevo{Medida: pasos. Claves: \texttt{usuario\_key},
-  \texttt{fecha\_key} y \texttt{reloj\_key}. Separa los dos relojes en los 15 días en que un usuario cambia de reloj.}
+  \item \textbf{Hecho \texttt{hecho\allowbreak\_usuario\allowbreak\_reloj\allowbreak\_dia}:} una fila por usuario, día y reloj. Medida: pasos. Claves: \texttt{usuario\_key},
+  \texttt{fecha\_key} y \texttt{reloj\_key}. Separa los dos relojes en los 15 días en que un usuario cambia de reloj.
   \item \textbf{Hecho \texttt{hecho\_comida}:} una fila por comida registrada,
   con porciones y nutrientes consumidos; claves a usuario, receta y fecha.
   \item \textbf{Dimensiones:} fecha (día, día de la semana, semana, mes),
   usuario (zona horaria), reloj (modelo) y receta (nombre, categoría,
   nutrientes por porción).
-  \item \textbf{Supuesto:} \nuevo{la nutrición de Food.com es por porción, y lo consumido es la nutrición de la receta por las porciones de la comida.}
+  \item \textbf{Supuesto:} la nutrición de Food.com es por porción, y lo consumido es la nutrición de la receta por las porciones de la comida.
 \end{itemize}
 
 \pregunta{¿Dónde viven los datos crudos y los analíticos, y en qué formato?} En un
@@ -178,17 +178,17 @@ precalculado\\\hline
 \end{tabularx}
 \endgroup
 
-\nuevo{\pregunta{¿Qué pasaría sin transacción en la consulta 1?} Si la escritura falla
+\pregunta{¿Qué pasaría sin transacción en la consulta 1?} Si la escritura falla
 después de cerrar el vínculo anterior, el reloj queda sin usuario y sus
 mediciones no se asignan a nadie. Si dos vinculaciones del mismo reloj corren a
-la vez, ambas pueden ver el reloj libre y dejar dos vínculos abiertos.}
+la vez, ambas pueden ver el reloj libre y dejar dos vínculos abiertos.
 
-\nuevo{\pregunta{¿Cómo se clasifica la consulta 7 y dónde se ejecuta?} Agrega hasta 1440
+\pregunta{¿Cómo se clasifica la consulta 7 y dónde se ejecuta?} Agrega hasta 1440
 mediciones del día con Pulso S, como una consulta OLAP, pero la ejecuta la
 aplicación para un solo usuario, con todos los usuarios activos a la vez y
 latencia de segundos, como una OLTP. Se clasifica como OLTP sobre un resumen
 precalculado: la base de series temporales actualiza un acumulado por reloj y
-día al recibir cada lote, y la aplicación lee una fila. Así no compite con la base relacional que registra comidas y vínculos.}
+día al recibir cada lote, y la aplicación lee una fila. Así no compite con la base relacional que registra comidas y vínculos.
 
 
 \clearpage
@@ -334,7 +334,7 @@ GROUP BY f.semana, r.modelo;
 
 \par\noindent\begin{minipage}{\linewidth}\setlength{\parskip}{1ex}
 \textbf{Consulta 6. Recetas más preparadas por cuartil.} La ejecuta el equipo
-de nutrición para elegir qué recetas promover. OLAP: lee todas las comidas del período (22106 en 61 días)\footnote{\nuevo{Lee las 22106 comidas, pero cuenta 15889: las de los 216 usuarios del universo, los únicos con cuartil, y con receta en el catálogo. Quedan fuera las de los 84 usuarios sin mediciones de madrugada y las 36 del universo cuya receta no está en el catálogo.}} y agrupa, una vez al día, con latencia aceptable de minutos y una sola ejecución a la vez. Rápida con almacenamiento
+de nutrición para elegir qué recetas promover. OLAP: lee todas las comidas del período (22106 en 61 días)\footnote{Lee las 22106 comidas, pero cuenta 15889: las de los 216 usuarios del universo, los únicos con cuartil, y con receta en el catálogo. Quedan fuera las de los 84 usuarios sin mediciones de madrugada y las 36 del universo cuya receta no está en el catálogo.} y agrupa, una vez al día, con latencia aceptable de minutos y una sola ejecución a la vez. Rápida con almacenamiento
 columnar.
 \begin{lstlisting}
 WITH perfil AS (
@@ -377,7 +377,7 @@ WHERE device_id = :reloj AND fecha = :hoy;
 \enc{\textbf{Tabla}} & \enc{\textbf{Nivel}} & \enc{\textbf{Modelo}} &
 \enc{\textbf{Claves y columnas}}\\\hline
 usuario & OLTP & Relacional & \texttt{usuario\_id} PK; nombre, zona\_horaria\\\hline
-receta & OLTP & Relacional & \texttt{receta\_id} PK, \nuevo{\texttt{publicada\_por} FK a usuario}; nombre, categoría, porciones, calorías, grasa saturada, sodio, azúcar, fibra, proteína\\\hline
+receta & OLTP & Relacional & \texttt{receta\_id} PK, \texttt{publicada\_por} FK a usuario; nombre, categoría, porciones, calorías, grasa saturada, sodio, azúcar, fibra, proteína\\\hline
 comida & OLTP & Relacional & \texttt{comida\_id} PK, \texttt{usuario\_id} FK, \texttt{receta\_id} FK; fecha\_hora, porciones\\\hline
 reloj & OLTP & Relacional & \texttt{device\_id} PK; modelo\\\hline
 vinculación & OLTP & Relacional & \texttt{vinculacion\_id} PK, \texttt{device\_id} FK, \texttt{usuario\_id} FK; desde, hasta\\\hline
@@ -388,22 +388,22 @@ mediciones unificadas & OLAP & Tabla Delta, partición por fecha de medición & 
 hecho\_usuario\_dia & OLAP & Tabla Delta, partición por mes & \texttt{usuario\_key}, \texttt{fecha\_key}; pasos, minutos de sesión, calorías gastadas, frecuencia cardíaca en reposo, número de comidas, nutrientes consumidos\\\hline
 hecho\_usuario\_\allowbreak reloj\_dia & OLAP & Tabla Delta, partición por mes & \texttt{usuario\_key}, \texttt{fecha\_key}, \texttt{reloj\_key}; pasos\\\hline
 hecho\_comida & OLAP & Tabla Delta, partición por mes & \texttt{usuario\_key}, \texttt{receta\_key}, \texttt{fecha\_key}; porciones, nutrientes consumidos\\\hline
-dim\_fecha, dim\_usuario, dim\_reloj, dim\_receta & OLAP & Tablas Delta & \nuevo{Fecha (día, día de la semana, semana, mes); usuario (zona horaria); reloj (modelo); receta (nombre, categoría, nutrientes por porción)}\\\hline
+dim\_fecha, dim\_usuario, dim\_reloj, dim\_receta & OLAP & Tablas Delta & Fecha (día, día de la semana, semana, mes); usuario (zona horaria); reloj (modelo); receta (nombre, categoría, nutrientes por porción)\\\hline
 \end{tabularx}
 \endgroup
 
-\nuevo{\textbf{De los datos al modelo.} \texttt{AuthorId} significa cosas distintas
-según el archivo, por eso cada uso tiene su nombre:}
+\textbf{De los datos al modelo.} \texttt{AuthorId} significa cosas distintas
+según el archivo, por eso cada uso tiene su nombre:
 
 \begingroup\iniciartabla\footnotesize
 \begin{tabularx}{\textwidth}{|L{5.2cm}|L{3.6cm}|Y|}\hline
 \enc{\textbf{Columna de origen}} & \enc{\textbf{Columna del modelo}} & \enc{\textbf{Significado}}\\\hline
-\texttt{recipes.AuthorId} & \nuevo{\texttt{receta.publicada\_por}} & \nuevo{Usuario que publicó la receta}\\\hline
-\texttt{comidas.AuthorId} & \nuevo{\texttt{comida.usuario\_id}} & \nuevo{Usuario que preparó la receta}\\\hline
-\texttt{dispositivos.AuthorId} & \nuevo{\texttt{vinculacion.usuario\_id}} & \nuevo{Dueño del reloj}\\\hline
-\texttt{RecipeId} & \nuevo{\texttt{receta\_id}} & \nuevo{Receta}\\\hline
-\texttt{fecha\_vinculacion}, \texttt{fecha\_desvinculacion} & \nuevo{\texttt{desde}, \texttt{hasta}} & \nuevo{Vigencia del vínculo; \texttt{hasta} nulo si sigue activo}\\\hline
-\texttt{device\_id} o \texttt{dev}; \texttt{ts\_medicion} o \texttt{timestamp}; \texttt{frecuencia\_cardiaca} o \texttt{fc} & \nuevo{\texttt{device\_id}, \texttt{ts\_medicion}, \texttt{frecuencia\_cardiaca}} & \nuevo{Nombres de Pulso S o FitBand 2, unificados al leer}\\\hline
+\texttt{recipes.AuthorId} & \texttt{receta.publicada\_por} & Usuario que publicó la receta\\\hline
+\texttt{comidas.AuthorId} & \texttt{comida.usuario\_id} & Usuario que preparó la receta\\\hline
+\texttt{dispositivos.AuthorId} & \texttt{vinculacion.usuario\_id} & Dueño del reloj\\\hline
+\texttt{RecipeId} & \texttt{receta\_id} & Receta\\\hline
+\texttt{fecha\_vinculacion}, \texttt{fecha\_desvinculacion} & \texttt{desde}, \texttt{hasta} & Vigencia del vínculo; \texttt{hasta} nulo si sigue activo\\\hline
+\texttt{device\_id} o \texttt{dev}; \texttt{ts\_medicion} o \texttt{timestamp}; \texttt{frecuencia\_cardiaca} o \texttt{fc} & \texttt{device\_id}, \texttt{ts\_medicion}, \texttt{frecuencia\_cardiaca} & Nombres de Pulso S o FitBand 2, unificados al leer\\\hline
 \end{tabularx}
 \endgroup
 
