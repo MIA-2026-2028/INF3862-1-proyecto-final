@@ -137,6 +137,11 @@ universo, fuera, noches_min = valor("""
            min(noches) filter (where noches > 0) from por_usuario""")
 print("Universo:", universo, "usuarios | sin noche:", fuera, "| noches mínimas en el universo:", noches_min)
 
+dias_universo, dias_sin_noche = valor("""
+    select count(*), count(*) - count(fc_noche) from por_dia
+    where usuario in (select usuario from por_usuario where noches > 0)""")
+print("Días del universo con datos:", dias_universo, "| sin mediciones de madrugada:", dias_sin_noche)
+
 hora_min, hora_max = valor("""
     select min(hora), max(hora) from por_hora
     where usuario in (select usuario from por_usuario where noches = 0)""")

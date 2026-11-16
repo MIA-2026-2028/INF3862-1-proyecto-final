@@ -135,17 +135,14 @@ diagrama entidad-relación en la figura~\ref{fig:er}).
   azúcar, fibra y proteína consumidas. Claves: \texttt{usuario\_key} y
   \texttt{fecha\_key}. La frecuencia cardíaca en reposo queda nula si el día no
   tiene cobertura nocturna suficiente.
-  \item \textbf{Hecho \texttt{hecho\allowbreak\_usuario\allowbreak\_reloj\allowbreak\_dia}:} una fila por
-  usuario, día y reloj. \nuevo{Separa las mediciones de cada reloj el día en que el usuario lo
-  cambia, que ocurre 15 veces en los datos.}
+  \item \textbf{Hecho \texttt{hecho\allowbreak\_usuario\allowbreak\_reloj\allowbreak\_dia}:} una fila por usuario, día y reloj. \nuevo{Medida: pasos. Claves: \texttt{usuario\_key},
+  \texttt{fecha\_key} y \texttt{reloj\_key}. Separa los dos relojes en los 15 días en que un usuario cambia de reloj.}
   \item \textbf{Hecho \texttt{hecho\_comida}:} una fila por comida registrada,
   con porciones y nutrientes consumidos; claves a usuario, receta y fecha.
   \item \textbf{Dimensiones:} fecha (día, día de la semana, semana, mes),
   usuario (zona horaria), reloj (modelo) y receta (nombre, categoría,
   nutrientes por porción).
-  \item \textbf{Supuesto:} la información nutricional de Food.com es por
-  porción; los nutrientes consumidos son los de la receta multiplicados por las
-  porciones de la comida.
+  \item \textbf{Supuesto:} \nuevo{la nutrición de Food.com es por porción, y lo consumido es la nutrición de la receta por las porciones de la comida.}
 \end{itemize}
 
 \pregunta{¿Dónde viven los datos crudos y los analíticos, y en qué formato?} En un
@@ -388,14 +385,30 @@ sesión & OLTP & Relacional & \texttt{session\_id} PK, \texttt{device\_id} FK; t
 medición & OLTP & Series temporales & \texttt{device\_id} y \texttt{ts\_medicion} PK; ts\_recepcion, frecuencia\_cardiaca, pasos, calorías\\\hline
 acumulado\_dia & OLTP & Series temporales & \texttt{device\_id} y fecha PK; pasos, calorías\\\hline
 mediciones unificadas & OLAP & Tabla Delta, partición por fecha de medición & \texttt{device\_id} y \texttt{ts\_medicion}; frecuencia\_cardiaca, pasos, calorías, modelo\\\hline
-\texttt{hecho\allowbreak\_usuario\allowbreak\_dia} & OLAP & Tabla Delta, partición por mes & \texttt{usuario\_key}, \texttt{fecha\_key}; pasos, minutos de sesión, calorías gastadas, frecuencia cardíaca en reposo, número de comidas, nutrientes consumidos\\\hline
-\shortstack[l]{\texttt{hecho\_usuario\_}\\\texttt{reloj\_dia}} & OLAP & Tabla Delta; partición por mes & \texttt{usuario\_key}, \texttt{fecha\_key}, \texttt{reloj\_key}; pasos por dispositivo\\\hline
+hecho\_usuario\_dia & OLAP & Tabla Delta, partición por mes & \texttt{usuario\_key}, \texttt{fecha\_key}; pasos, minutos de sesión, calorías gastadas, frecuencia cardíaca en reposo, número de comidas, nutrientes consumidos\\\hline
+hecho\_usuario\_\allowbreak reloj\_dia & OLAP & Tabla Delta, partición por mes & \texttt{usuario\_key}, \texttt{fecha\_key}, \texttt{reloj\_key}; pasos\\\hline
 hecho\_comida & OLAP & Tabla Delta, partición por mes & \texttt{usuario\_key}, \texttt{receta\_key}, \texttt{fecha\_key}; porciones, nutrientes consumidos\\\hline
-dim\_fecha, dim\_usuario, dim\_reloj, dim\_receta & OLAP & Tablas Delta & Fecha (día/semana/mes); usuario (zona); reloj (modelo); receta (nombre/categoría/nutrientes)\\\hline
+dim\_fecha, dim\_usuario, dim\_reloj, dim\_receta & OLAP & Tablas Delta & \nuevo{Fecha (día, día de la semana, semana, mes); usuario (zona horaria); reloj (modelo); receta (nombre, categoría, nutrientes por porción)}\\\hline
+\end{tabularx}
+\endgroup
+
+\nuevo{\textbf{De los datos al modelo.} \texttt{AuthorId} significa cosas distintas
+según el archivo, por eso cada uso tiene su nombre:}
+
+\begingroup\iniciartabla\footnotesize
+\begin{tabularx}{\textwidth}{|L{5.2cm}|L{3.6cm}|Y|}\hline
+\enc{\textbf{Columna de origen}} & \enc{\textbf{Columna del modelo}} & \enc{\textbf{Significado}}\\\hline
+\texttt{recipes.AuthorId} & \nuevo{\texttt{receta.publicada\_por}} & \nuevo{Usuario que publicó la receta}\\\hline
+\texttt{comidas.AuthorId} & \nuevo{\texttt{comida.usuario\_id}} & \nuevo{Usuario que preparó la receta}\\\hline
+\texttt{dispositivos.AuthorId} & \nuevo{\texttt{vinculacion.usuario\_id}} & \nuevo{Dueño del reloj}\\\hline
+\texttt{RecipeId} & \nuevo{\texttt{receta\_id}} & \nuevo{Receta}\\\hline
+\texttt{fecha\_vinculacion}, \texttt{fecha\_desvinculacion} & \nuevo{\texttt{desde}, \texttt{hasta}} & \nuevo{Vigencia del vínculo; \texttt{hasta} nulo si sigue activo}\\\hline
+\texttt{device\_id} o \texttt{dev}; \texttt{ts\_medicion} o \texttt{timestamp}; \texttt{frecuencia\_cardiaca} o \texttt{fc} & \nuevo{\texttt{device\_id}, \texttt{ts\_medicion}, \texttt{frecuencia\_cardiaca}} & \nuevo{Nombres de Pulso S o FitBand 2, unificados al leer}\\\hline
 \end{tabularx}
 \endgroup
 
 \section{Anexo C. Origen de las cifras}
+
 
 
 Las cifras del informe se calculan con
