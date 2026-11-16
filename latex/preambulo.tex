@@ -57,6 +57,9 @@
 \newcommand{\enc}[1]{\cellcolor{tablaencabezado}#1}
 \newcommand{\iniciartabla}{\renewcommand{\arraystretch}{1.3}\arrayrulecolor{black!70}}
 
+% notas al pie con números también dentro de bloques (minipage), como en Word
+\renewcommand{\thempfootnote}{\arabic{mpfootnote}}
+
 % pregunta que abre una respuesta
 \newcommand{\pregunta}[1]{\textbf{\color{subtitulo}#1}}
 
