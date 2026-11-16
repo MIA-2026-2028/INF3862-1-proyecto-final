@@ -1,6 +1,6 @@
 """Cifras del informe E1, calculadas desde los datos del curso.
 
-Se ejecuta desde la raíz del repositorio, con los datos ubicados según
+Se ejecuta desde cualquier carpeta, con los datos ubicados según
 datos/README.md:
 
     docker compose exec jupyter uv run python entregas/E1/anexos/verificacion_datos.py
@@ -8,20 +8,13 @@ datos/README.md:
 
 import glob
 import os
-
-try:
-    import duckdb
-except ImportError:
-    duckdb = None
-
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
-DATOS = os.environ.get("INF3862_DATA_DIR") or str(ROOT / "datos" / "datos_proyecto_INF3862")
-if not os.path.isdir(DATOS):
-    sibling = ROOT.parent / "datos_proyecto_INF3862"
-    if sibling.is_dir():
-        DATOS = str(sibling)
+import duckdb
+
+# la ruta sale de la ubicación del script: funciona desde cualquier carpeta
+RAIZ = Path(__file__).resolve().parents[3]
+DATOS = str(RAIZ / "datos" / "datos_proyecto_INF3862")  # carpeta de los datos del curso
 HORAS_NOCHE = (2, 4)                         # 2:00 a 4:59, hora local
 HORAS_TARDE = (12, 18)                       # 12:00 a 18:59, hora local
 MINUTOS_MIN_HORA = {"Pulso S": 30, "FitBand 2": 6}  # media hora de mediciones por modelo
@@ -34,19 +27,6 @@ MEDICIONES = f"{DATOS}/wearable/mediciones/*/*.jsonl.gz"
 
 if not os.path.exists(RECETAS):
     raise SystemExit("Faltan los datos: ver datos/README.md")
-
-if duckdb is None:
-    report = ROOT / "datos" / "processed" / "e2" / "quality_report.json"
-    print("DuckDB no está instalado; no se recalculan las consultas de E1.")
-    if report.exists():
-        import json
-        quality = json.loads(report.read_text(encoding="utf-8"))
-        print("Conteos verificados por el pipeline E2:")
-        print(json.dumps(quality["counts"], ensure_ascii=False, indent=2))
-        print("Las cifras de Food.com y las métricas nocturnas de E1 requieren DuckDB.")
-    else:
-        print("Ejecuta primero el pipeline E2 para obtener conteos verificables.")
-    raise SystemExit(0)
 
 
 def megabytes(patron):
@@ -83,8 +63,15 @@ relojes, usuarios, desvinculados = valor(f"""
 vinculaciones = valor(f"""
     select count(*) from read_csv_auto('{DISPOSITIVOS}')
     where fecha_vinculacion >= (select min(fecha_hora) from read_csv_auto('{COMIDAS}'))""")[0]
+# cambio de reloj: el nuevo se vincula el mismo día en que se desvincula el anterior
+cambios_mismo_dia = valor(f"""
+    select count(*) from read_csv_auto('{DISPOSITIVOS}') anterior
+    join read_csv_auto('{DISPOSITIVOS}') nuevo
+      on nuevo.AuthorId = anterior.AuthorId and nuevo.device_id <> anterior.device_id
+     and cast(nuevo.fecha_vinculacion as date) = cast(anterior.fecha_desvinculacion as date)""")[0]
 print("Relojes:", relojes, "| usuarios:", usuarios, "| desvinculados:", desvinculados,
-      "| vinculaciones en el período:", vinculaciones, "| por mes:", round(vinculaciones / dias * 30))
+      "| vinculaciones en el período:", vinculaciones, "| por mes:", round(vinculaciones / dias * 30),
+      "| cambios de reloj el mismo día:", cambios_mismo_dia)
 
 sesiones = valor(f"select count(*) from read_json_auto('{SESIONES}')")[0]
 print("Sesiones:", sesiones, "|", round(megabytes(SESIONES), 1), "MB | por día:", round(sesiones / dias))

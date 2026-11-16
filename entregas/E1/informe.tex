@@ -5,7 +5,7 @@
 
 \portada[Alumnos]{INF3862-1 Plataformas Big Data para Data Science}
   {Proyecto del curso, Entrega 1: Diseño de datos}
-  {Habitos de actividad y alimentacion asociados a frecuencia cardiaca en reposo}
+  {Hábitos de actividad y alimentación asociados a mejores indicadores de salud}
   {Miguel Angel Cervantes Buleje y Roger Ruben Reyes Miranda}
   {16 de noviembre de 2026}
 
@@ -13,7 +13,10 @@
 
 \section{4.1 Objetivo final del proyecto}
 
-El proyecto describe asociaciones entre habitos registrados y frecuencia cardiaca nocturna en reposo. No evalua si recetas o medicamentos reducen enfermedades ni estima efectos causales: los datos disponibles no permiten responder esa pregunta clinica.
+\nuevo{El proyecto compara los hábitos de actividad y de alimentación de los
+usuarios de la aplicación según su frecuencia cardíaca en reposo, el indicador
+de salud que el proyecto toma del reloj. Los resultados describen asociaciones
+en los datos, no causas ni diagnósticos.}
 
 \begingroup\iniciartabla\small
 \begin{tabularx}{\textwidth}{|L{2.3cm}|Y|}\hline
@@ -36,14 +39,15 @@ esperar horas. Se toleran lotes que llegan tarde si se recalculan los días que
 afectan. No se toleran mediciones duplicadas: cada medición trae los pasos dados desde
 la anterior, y una repetida los suma dos veces. Una
 frecuencia cardíaca nula se excluye del cálculo, no se rellena.\\\hline
-Recursos & Un equipo de datos pequeño y presupuesto bajo. Los datos del proyecto suman cerca de 296 MB y caben en una máquina.\\\hline
+Recursos & \nuevo{Equipo de datos pequeño y presupuesto bajo; los 296 MB de datos del proyecto caben en una máquina.}\\\hline
 \end{tabularx}
 \endgroup
 
 \textbf{Frecuencia cardíaca en reposo:} promedio de la frecuencia cardíaca entre
 las 2:00 y las 5:00, en la hora local del usuario y fuera de sesiones de
 actividad. Mide el pulso sin esfuerzo: fuera de sesiones, el promedio de todos los relojes
-es 60.1 latidos por minuto de madrugada y 78.5 entre las 12:00 y las 19:00. Solo se utiliza para ordenar descriptivamente a los usuarios; no es diagnostico ni medida suficiente de salud.
+es 60.1 latidos por minuto de madrugada y 78.5 entre las 12:00 y las 19:00. \nuevo{Un valor más bajo se interpreta como mejor; solo ordena a los usuarios
+y no es un diagnóstico.}
 
 \textbf{Universo del dashboard:} 216 de los 300 usuarios. Los otros 84 no tienen
 ninguna medición entre las 23:00 y las 7:00, hora local: no usan el reloj de
@@ -63,7 +67,7 @@ rechaza antes de afectar la operación. Al leer en las que llegan del reloj
 8601, y FitBand 2 envía \texttt{fc} y milisegundos desde 1970. Guardar el lote
 original y mapear los nombres al procesarlo permite reprocesar si cambia una regla o aparece un modelo nuevo.
 
-\begingroup\iniciartabla\small
+\begingroup\iniciartabla\footnotesize
 \begin{tabularx}{\textwidth}{|L{1.75cm}|L{2.7cm}|Y|Y|Y|}\hline
 \enc{\textbf{Fuente}} & \enc{\textbf{Registro y tipo}} &
 \enc{\textbf{Volumen y crecimiento}} & \enc{\textbf{Recepción}} &
@@ -97,7 +101,7 @@ Lotes atrasados y repetidos; frecuencia cardíaca nula en 2.3\%; nombres de camp
 
 \begin{itemize}
   \item \textbf{Usuario} (\texttt{usuario\_id} PK, nombre, zona\_horaria),
-  \textbf{receta} (\texttt{receta\_id} PK, \texttt{autor\_foodcom\_id} de origen,
+  \textbf{receta} (\texttt{receta\_id} PK, \nuevo{\texttt{publicada\_por} FK a usuario},
   nombre, categoría, porciones, calorías, grasa saturada, sodio, azúcar, fibra,
   proteína) y \textbf{comida} (\texttt{comida\_id} PK, \texttt{usuario\_id} FK,
   \texttt{receta\_id} FK, fecha\_hora, porciones). Modelo relacional: la
@@ -117,10 +121,10 @@ Lotes atrasados y repetidos; frecuencia cardíaca nula en 2.3\%; nombres de camp
 \end{itemize}
 
 \pregunta{¿Qué regla de integridad exige una transacción?} Un reloj está
-vinculado a un solo usuario a la vez: al vincularlo a otro usuario, cerrar el
-vínculo anterior y abrir el nuevo son una unidad (consulta 1 del anexo A; diagrama entidad-relación en la figura~\ref{fig:er}).
-
-Un índice único parcial sobre \texttt{device\_id} con la condición \texttt{hasta IS NULL} impide que dos transacciones concurrentes dejen dos vínculos activos.
+vinculado a un solo usuario a la vez: al vincularlo a otro usuario, cerrar el vínculo anterior y abrir el nuevo son una unidad, \nuevo{y un índice único
+sobre \texttt{device\_id} con \texttt{hasta IS NULL} rechaza un segundo vínculo
+abierto aunque dos transacciones corran a la vez} (consulta 1 del anexo A;
+diagrama entidad-relación en la figura~\ref{fig:er}).
 
 \subsection{b) Nivel analítico (OLAP)}
 
@@ -132,9 +136,8 @@ Un índice único parcial sobre \texttt{device\_id} con la condición \texttt{ha
   \texttt{fecha\_key}. La frecuencia cardíaca en reposo queda nula si el día no
   tiene cobertura nocturna suficiente.
   \item \textbf{Hecho \texttt{hecho\allowbreak\_usuario\allowbreak\_reloj\allowbreak\_dia}:} una fila por
-  usuario, día y reloj. Conserva modelo y dispositivo para comparar actividad
-  sin atribuir al reloj del cierre del día mediciones de otro reloj usado
-  antes de un cambio.
+  usuario, día y reloj. \nuevo{Separa las mediciones de cada reloj el día en que el usuario lo
+  cambia, que ocurre 15 veces en los datos.}
   \item \textbf{Hecho \texttt{hecho\_comida}:} una fila por comida registrada,
   con porciones y nutrientes consumidos; claves a usuario, receta y fecha.
   \item \textbf{Dimensiones:} fecha (día, día de la semana, semana, mes),
@@ -157,8 +160,6 @@ un lote atrasado lee solo ese día. Los hechos se particionan por mes, y las con
 
 \section{4.4 Consultas de ejemplo}
 
-El anexo A trae el pseudocódigo y la justificación de cada consulta.
-
 \begingroup\iniciartabla\small
 \begin{tabularx}{\textwidth}{|c|Y|L{2.2cm}|L{4.6cm}|}\hline
 \enc{\textbf{N.}} & \enc{\textbf{Propósito y usuario}} &
@@ -180,7 +181,18 @@ precalculado\\\hline
 \end{tabularx}
 \endgroup
 
-\pregunta{Requisitos cubiertos en el anexo A.} La consulta 1 incluye la transacción y el riesgo de falla; la 4 responde el objetivo; la 7 discute la consulta de frontera y su resumen precalculado.
+\nuevo{\pregunta{¿Qué pasaría sin transacción en la consulta 1?} Si la escritura falla
+después de cerrar el vínculo anterior, el reloj queda sin usuario y sus
+mediciones no se asignan a nadie. Si dos vinculaciones del mismo reloj corren a
+la vez, ambas pueden ver el reloj libre y dejar dos vínculos abiertos.}
+
+\nuevo{\pregunta{¿Cómo se clasifica la consulta 7 y dónde se ejecuta?} Agrega hasta 1440
+mediciones del día con Pulso S, como una consulta OLAP, pero la ejecuta la
+aplicación para un solo usuario, con todos los usuarios activos a la vez y
+latencia de segundos, como una OLTP. Se clasifica como OLTP sobre un resumen
+precalculado: la base de series temporales actualiza un acumulado por reloj y
+día al recibir cada lote, y la aplicación lee una fila. Así no compite con la base relacional que registra comidas y vínculos.}
+
 
 \clearpage
 \section{4.5 Arquitectura inicial}
@@ -230,10 +242,9 @@ precalculado\\\hline
   ent/.style={draw=banda,fill=fondosuave,align=left,font=\scriptsize,
     inner sep=3pt},
   rel/.style={draw=pizarra}]
-\node[ent] (usu) {\textbf{usuario}\\usuario\_id PK\
-ombre\\zona\_horaria};
+\node[ent] (usu) {\textbf{usuario}\\usuario\_id PK\\nombre\\zona\_horaria};
 \node[ent,right=1.6cm of usu] (com) {\textbf{comida}\\comida\_id PK\\usuario\_id FK\\receta\_id FK\\fecha\_hora, porciones};
-\node[ent,right=1.6cm of com] (rec) {\textbf{receta}\\receta\_id PK\\autor\_foodcom\_id, nombre\\categoría\\nutrientes por porción};
+\node[ent,right=1.6cm of com] (rec) {\textbf{receta}\\receta\_id PK\\publicada\_por FK\\nombre, categoría\\nutrientes por porción};
 \node[ent,below=0.9cm of usu] (vin) {\textbf{vinculación}\\vinculacion\_id PK\\device\_id FK\\usuario\_id FK\\desde, hasta};
 \node[ent,right=1.6cm of vin] (rel) {\textbf{reloj}\\device\_id PK\\modelo};
 \node[ent,right=1.6cm of rel] (ses) {\textbf{sesión}\\session\_id PK\\device\_id FK\\tipo, inicio, fin};
@@ -244,7 +255,7 @@ ombre\\zona\_horaria};
 \draw[rel] (vin) -- node[above,font=\scriptsize]{N : 1} (rel);
 \draw[rel] (rel) -- node[above,font=\scriptsize]{1 : N} (ses);
 \draw[rel] (rel) -- node[right,font=\scriptsize]{1 : N} (med);
-  % El autor del catalogo Food.com no es un usuario de la aplicacion.
+  \draw[rel] (usu.north) -- ++(0,0.4) -| node[pos=0.25,above,font=\scriptsize]{publica 1 : N} (rec.north);
 \end{tikzpicture}
 \caption{Diagrama entidad-relación del nivel operacional (4.3 a).}\label{fig:er}
 \end{figure}
@@ -369,7 +380,7 @@ WHERE device_id = :reloj AND fecha = :hoy;
 \enc{\textbf{Tabla}} & \enc{\textbf{Nivel}} & \enc{\textbf{Modelo}} &
 \enc{\textbf{Claves y columnas}}\\\hline
 usuario & OLTP & Relacional & \texttt{usuario\_id} PK; nombre, zona\_horaria\\\hline
-receta & OLTP & Relacional & \texttt{receta\_id} PK, \texttt{autor\_foodcom\_id} de origen, sin FK a usuario; nombre, categoría, porciones, calorías, grasa saturada, sodio, azúcar, fibra, proteína\\\hline
+receta & OLTP & Relacional & \texttt{receta\_id} PK, \nuevo{\texttt{publicada\_por} FK a usuario}; nombre, categoría, porciones, calorías, grasa saturada, sodio, azúcar, fibra, proteína\\\hline
 comida & OLTP & Relacional & \texttt{comida\_id} PK, \texttt{usuario\_id} FK, \texttt{receta\_id} FK; fecha\_hora, porciones\\\hline
 reloj & OLTP & Relacional & \texttt{device\_id} PK; modelo\\\hline
 vinculación & OLTP & Relacional & \texttt{vinculacion\_id} PK, \texttt{device\_id} FK, \texttt{usuario\_id} FK; desde, hasta\\\hline
