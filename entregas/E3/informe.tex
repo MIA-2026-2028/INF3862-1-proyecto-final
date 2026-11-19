@@ -1,0 +1,64 @@
+\documentclass[11pt]{article}
+\input{../../latex/preambulo.tex}
+\begin{document}
+\portada[Alumnos]{INF3862-1 Plataformas Big Data para Data Science}
+{Proyecto del curso, Entrega 3: Datos para el modelamiento y arquitectura final}
+{Hábitos de actividad y alimentación asociados a mejores indicadores de salud}
+{Miguel Angel Cervantes Buleje y Roger Ruben Reyes Miranda}
+{14 de diciembre de 2026}
+
+\section{Objetivo, población y datos}
+Mantuvimos el objetivo principal de E1: describir, por cuartiles de frecuencia cardíaca en reposo, los pasos, los minutos de sesión y los nutrientes de las recetas registradas. Definimos como unidad de análisis al usuario por día local. Comparamos los hábitos de los 216 usuarios con cobertura nocturna suficiente; excluimos del ordenamiento a los otros 84 y no sustituimos su frecuencia en reposo por lecturas tomadas mientras estaban despiertos. Las comidas registradas describen eventos de la aplicación, no la dieta completa.
+
+En E2 integramos 61 días de datos de 300 usuarios con reloj. De 15,540,132 mediciones eliminamos 345,599 duplicados y dejamos fuera del indicador 349,931 lecturas nulas. Generamos 18,600 filas usuario-día y encontramos cobertura nocturna suficiente para 216 usuarios. De las 22,106 comidas, 48 no coincidieron con el catálogo. El hecho Gold y sus dimensiones alimentan las tres consultas analíticas: perfiles por cuartil, pasos semanales por modelo de reloj y recetas más registradas. Comprobamos que la consulta diaria dio el mismo resultado en CSV y Parquet; Parquet ocupó 0.76 MB frente a 1.67 MB de CSV. De los 11,864 días elegibles del universo, 41 no tuvieron mediciones nocturnas válidas y conservaron la frecuencia en reposo nula. La capa que implementamos usa Parquet local; no implementamos tablas Delta ni transacciones.
+
+Como análisis secundario, construimos una tabla para estimar la frecuencia cardíaca en reposo del día siguiente. Tomamos el objetivo de E2, calculado con las lecturas locales entre las 02:00 y las 04:59, fuera de sesiones y con el mínimo de cobertura definido para cada reloj. Usamos diez variables predictoras que resumen los siete días anteriores: pasos, minutos de sesión, comidas, porciones, calorías, sodio, grasa saturada, azúcar, fibra y proteína. Excluimos la frecuencia cardíaca del día objetivo entre las variables predictoras. Unimos los eventos de comida con el catálogo Food.com mediante \texttt{RecipeId}. Los nutrientes reflejan solo comidas con receta coincidente; excluimos las ventanas con comidas sin información nutricional coincidente. Interpretamos un día sin comidas registradas como cero eventos registrados, no como cero ingesta real.
+\section{Validación temporal y resultado}
+Formamos 10,710 ejemplos usuario-día con siete días consecutivos de características y un objetivo válido para el día siguiente. Fijamos el corte temporal en el 2 de febrero de 2008: usamos 8,445 ejemplos anteriores para entrenar y 2,265 fechas posteriores para evaluar. Los 216 usuarios aparecen en ambos periodos; por ello, medimos el desempeño en fechas futuras de usuarios ya observados y no la capacidad de generalizar a personas nuevas. Evitamos incluir información de fechas futuras en las variables de cada ejemplo.
+
+\begin{center}\small
+\begin{tabular}{lrrr}\hline
+Modelo & MAE (bpm) & RMSE (bpm) & $R^2$\\\hline
+Mediana de entrenamiento & 5.6389 & 7.0887 & -0.0040\\
+Regresión lineal estandarizada & 5.6710 & 7.1426 & -0.0193\\\hline
+\end{tabular}
+\end{center}
+
+La regresión lineal no superó al modelo de referencia basado en la mediana; además, los valores negativos de $R^2$ indican que ambos modelos predijeron peor que una referencia basada en el promedio observado. Por ello, no recomendamos desplegar el predictor ni usarlo para sugerir alimentos o actividad. Concluimos que el dashboard descriptivo sigue siendo el producto viable para este conjunto. Sus asociaciones no son causales ni clínicas. Los datos de relojes son sintéticos y las recetas registradas no cubren toda la alimentación.
+\section{Versionado y reproducibilidad}
+Documentamos el inventario de fuentes, la fecha de corte, la versión del código, las dependencias fijadas, las reglas de calidad, las métricas y las variables del modelo para identificar la versión de datos usada. El notebook de E2 integra las fuentes y genera el hecho Gold; el notebook y el script de E3 permiten reconstruir por separado la tabla de modelamiento y la evaluación secundaria. Para un uso en producción recomendamos conservar cada versión Parquet junto con su inventario. El prototipo todavía no guarda esas versiones ni calcula una huella para detectar cambios en el contenido de cada archivo; ambas capacidades quedan pendientes antes de una publicación productiva.
+\section{Arquitectura final y alternativas}
+Elegimos Python, DuckDB, Parquet local y un notebook con dashboard ligero para el volumen actual: 300 usuarios, 61 días y cerca de 296 MB de fuentes. No necesitamos Spark ni una plataforma administrada para esta escala. Para un crecimiento importante, planteamos como alternativa usar almacenamiento de objetos S3, catálogo Glue, Spark para transformar grandes volúmenes, Parquet y Athena para consultas. Incorporaríamos una plataforma de inteligencia de negocios administrada solo si más usuarios necesitaran consultar los resultados de manera recurrente.
+
+\begin{center}\small
+\begin{tabularx}{\textwidth}{|l|Y|Y|Y|}\hline
+\textbf{Capa} & \textbf{Local: ventajas y límites} &
+\textbf{Administrada: ventajas y límites} & \textbf{Elección}\\\hline
+Recepción y crudos & Disco e inventario CSV: simple y sin cargo de nube; depende de respaldos locales & S3 con versionado: duradero y escalable; agrega cargos y gestión de permisos & Disco mientras el volumen siga en cientos de MB\\\hline
+Transformación & Python + DuckDB: sencillo y barato; limitado por memoria y una máquina & Spark en Glue: escala horizontalmente; añade configuración, arranque y costo & Python + DuckDB para la ventana actual\\\hline
+Analítica y consumo & Parquet ZSTD y notebook: fácil de mantener; pocos usuarios concurrentes & Athena y BI: consulta compartida; cobra por escaneo y consumo de BI & Parquet local; evaluar Athena si crece el uso\\\hline
+Versionado y operación & \texttt{uv.lock}, manifiesto y reproceso: reproducible; sin versiones guardadas automáticamente & catálogo Glue, versiones guardadas y coordinador automático: trazabilidad administrada; más componentes & Manifiesto y código versionado ahora; guardar versiones antes de producción\\\hline
+\end{tabularx}
+\end{center}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=0.35cm, caja/.style={draw=banda,fill=fondosuave,rounded corners,align=center,font=\small,text width=2.6cm,minimum height=0.9cm},flecha/.style={-{Stealth},draw=pizarra}]
+\node[caja,text width=2.25cm] (raw) {\shortstack{Fuentes\\+ Bronze\\CSV / JSONL\\Parquet}};
+\node[caja,right=of raw,text width=2.25cm] (etl) {\shortstack{Python +\\DuckDB\\lote + calidad}};
+\node[caja,right=of etl,text width=2.25cm] (gold) {\shortstack{Gold\\Parquet\\hechos + dim.}};
+\node[caja,right=of gold,text width=2.25cm] (ml) {\shortstack{Modelo\\datos +\\referencia}};
+\node[caja,right=of ml,text width=2.25cm] (dash) {\shortstack{Consumo\\dashboard\\por cuartil}};
+\draw[flecha] (raw)--(etl); \draw[flecha] (etl)--(gold); \draw[flecha] (gold)--(ml); \draw[flecha] (ml)--(dash);
+\node[caja,below=0.55cm of etl,xshift=2.8cm,text width=8cm] (ops) {\shortstack{Operaci\'on y gobierno: ejecuci\'on manual hoy;\\en producci\'on, orquestaci\'on diaria,\\reintento sin duplicados, supervisión, acceso por rol\\y versionado}};
+\draw[flecha,dashed] (ops)--(etl); \draw[flecha,dashed] (ops)--(ml);
+\end{tikzpicture}
+\caption{Arquitectura final elegida para el volumen observado.}
+\end{figure}
+
+Estimamos un costo incremental local de US\$0--30 mensuales si reutilizamos el equipo, principalmente por electricidad y respaldos; esta cifra excluye las horas de trabajo. Para la alternativa administrada estimamos inicialmente US\$50--200 al mes para almacenamiento, catálogo, procesamiento ocasional y consultas de pocos usuarios. Los principales factores son la frecuencia de cómputo, el volumen retenido, los datos consultados, la transferencia y el uso de la plataforma de visualización. Son órdenes de magnitud para comparar, no cotizaciones de proveedores. No incluimos por ahora Spark administrado, un almacén de datos, MLflow ni recomendaciones automáticas: el volumen, el uso y la evidencia predictiva no justifican su costo ni complejidad.
+\section{Operación, recuperación y gobierno}
+Proponemos programar la carga diaria y publicar los resultados después de validar su calidad. El prototipo que preparamos se ejecuta manualmente como un lote completo. Para una versión productiva recomendamos registrar fechas, conteos y errores; al reintentar, reemplazar la partición afectada para evitar duplicados. Los lotes tardíos requerirían recalcular las fechas de medición y los días de usuario afectados. Ante una falla, conservaríamos la última partición publicada y reprocesaríamos los datos originales. También monitorearíamos retrasos, duplicados, valores nulos de frecuencia cardíaca, cobertura nocturna, comidas sin receta y cambios en las distribuciones por modelo. Las alertas iniciarían una revisión, sin activar recomendaciones ni reentrenamiento automático.
+
+Proponemos limitar el acceso a identificadores seudónimos al equipo de datos y mostrar en el dashboard solo resultados agregados, sin identificadores individuales. El acceso por rol, una política de retención acordada con los responsables de los datos y la separación de fuentes y derivados ayudarían a reducir la exposición. Antes de un uso real, recomendamos obtener autorización, revisar la privacidad, trabajar con datos representativos y validar los resultados con especialistas. No usamos estos análisis para diagnosticar ni para afirmar que ciertos alimentos o hábitos reducen enfermedades.
+\textbf{Reproducibilidad:} el notebook de E2 procesa las fuentes y genera los resultados Gold y la tabla para el análisis secundario de E3. El notebook de E3 permite reconstruir por separado esa tabla y la evaluación del modelo. Los productos derivados se guardan en \texttt{datos/processed/e3/}.\end{document}

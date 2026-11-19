@@ -1,0 +1,37 @@
+\documentclass[11pt]{article}
+\input{../../latex/preambulo.tex}
+\begin{document}
+\portada[Alumnos]{INF3862-1 Plataformas Big Data para Data Science}
+{Proyecto del curso, Entrega 2: Ingesta y procesamiento}
+{Hábitos de actividad y alimentación asociados a mejores indicadores de salud}
+{Miguel Angel Cervantes Buleje y Roger Ruben Reyes Miranda}
+{30 de noviembre de 2026}
+
+\section{Pipeline y almacenamiento}
+Seguimos un flujo ELT (extraer, cargar y transformar): conservamos las fuentes originales en la capa Bronze y las transformamos al leerlas, porque los dos modelos de reloj usan esquemas distintos. Preparamos el notebook \texttt{entregas/E2/notebook\_e2.ipynb} y el código reutilizable \texttt{src/pipeline\_e2.py}. En cada ejecución leemos las fuentes sin modificarlas, normalizamos los esquemas, validamos los vínculos, eliminamos duplicados por dispositivo y marca temporal, convertimos las fechas de UTC a la zona horaria del dispositivo y calculamos medidas por usuario y día, y por reloj y día. Con DuckDB incorporamos los nutrientes de Food.com usando el identificador \texttt{RecipeId} y las porciones.
+\begin{center}\small
+\begin{tabularx}{\textwidth}{|l|Y|l|}\hline
+\textbf{Capa} & \textbf{Contenido y formato} & \textbf{Uso}\\\hline
+Bronze & CSV, JSONL.GZ y Parquet originales; inmutables & Reproceso y auditoría\\\hline
+Silver & Hecho usuario-día validado en Parquet con compresión Zstandard, organizado por fecha; dimensiones de usuario, dispositivo y fecha en CSV & Análisis por fecha y trazabilidad\\\hline
+Gold & Hechos diarios y por reloj, perfiles por cuartil, pasos semanales y ranking de recetas & Dashboard de nutrición\\\hline
+\end{tabularx}
+\end{center}
+
+Definimos la tabla usuario-día con una fila por usuario y fecha local; la tabla reloj-día añade el dispositivo y su modelo. El Parquet particionado se deriva de los archivos originales y permite reproducir las tablas analíticas. El prototipo no implementa tablas Delta ni transacciones ACID. Para la actualización diaria propusimos esta secuencia: recibir e inventariar los datos, validarlos y normalizarlos, eliminar duplicados, convertir las fechas a la hora local, integrar las comidas, generar hechos y dimensiones y actualizar las consultas y el dashboard. El prototipo procesa el lote completo y regenera sus resultados; todavía no tiene un coordinador automático ni cargas incrementales. Para una operación diaria recomendamos registrar conteos y estado en cada paso, repetir el proceso para las fechas afectadas por un error y recalcular los días alcanzados por lotes tardíos. Los archivos originales permiten reconstruir las salidas mediante un nuevo procesamiento completo.
+\section{Reglas de calidad y resultados}
+Procesamos 1,449 archivos con 15,540,132 mediciones. Eliminamos 345,599 duplicados por dispositivo y marca temporal (2.22\%). Dejamos fuera del cálculo de frecuencia en reposo 349,931 lecturas nulas (2.25\%). Conservamos, con su fecha de medición, 8,957,451 registros (57.7\%) que llegaron con más de una hora de retraso. Normalizamos los dos esquemas de reloj y excluimos los eventos que no correspondían a un vínculo vigente. Ninguna de las 4,840 sesiones resultó inválida o quedó fuera de vínculo. De las 22,106 comidas, asociamos 22,058 con el catálogo y dejamos 48 sin receta coincidente. No imputamos los nutrientes que faltaban en los datos de origen.
+
+Generamos 18,600 filas usuario-día, 16,330 filas reloj-día y 12,590 filas con nutrientes asociados. Calculamos la frecuencia en reposo como el promedio de las lecturas locales entre las 02:00 y las 04:59, fuera de sesiones y con un mínimo horario de 30 lecturas para Pulso S o 6 para FitBand 2. Encontramos cobertura nocturna suficiente para 216 de los 300 usuarios. Interpretamos los días sin comidas registradas como cero eventos registrados, no como ausencia de consumo. Cuando faltó cobertura nocturna, conservamos nula la frecuencia en reposo. Los nutrientes corresponden a comidas con receta coincidente y no representan toda la alimentación.
+
+Aplicamos la misma regla por usuario y día: de los 11,864 días elegibles para los 216 usuarios, 41 no tuvieron mediciones nocturnas válidas. En esos días mantuvimos nula la frecuencia en reposo y no la completamos con lecturas diurnas.
+
+Ejecutamos las tres consultas analíticas definidas en E1 y guardamos sus resultados como CSV en \texttt{datos/processed/e2/}. La consulta 4 produjo cuatro cuartiles con 54 usuarios cada uno; el primer cuartil tiene menor frecuencia en reposo y lo usamos solo para ordenar a los usuarios, no como diagnóstico. La consulta 5 produjo 20 combinaciones de semana y modelo de reloj. La consulta 6 devolvió hasta 40 filas con las recetas más registradas por cuartil. Estos resultados son descriptivos y no muestran que los alimentos causen cambios en la frecuencia cardíaca.
+\section{Comparación de formatos y escalabilidad}
+Comparamos la suma diaria de pasos de todos los usuarios en CSV y Parquet, y obtuvimos el mismo resultado. En esta máquina, una ejecución tardó 0.128 s con CSV y 0.170 s con Parquet; los archivos ocuparon 1.67 MB y 0.76 MB, respectivamente. Los tiempos incluyen el inicio de DuckDB, por lo que describen esta ejecución y no una medición aislada del motor. Parquet ocupó menos espacio y permite consultar por fecha; para confirmar cuántos datos lee una consulta en producción habría que medirlo con un motor instrumentado. CSV facilita el intercambio, aunque requiere leer y convertir el texto.
+
+En los 61 días observados contamos 15.54 millones de mediciones, equivalentes a 115.5 MB comprimidos, para 300 usuarios con reloj. A partir de esa ventana estimamos linealmente 279 millones de filas y 2.1 GB comprimidos en tres años. El escenario de cien veces el volumen actual equivaldría a 27.9 mil millones de filas y unos 207 GB, sin contar copias ni crecimiento del catálogo. No ejecutamos esos escenarios: son estimaciones de capacidad. También estimamos cerca de 93 millones de filas y 0.69 GB por año. Los datos disponibles no permiten contar cuántos usuarios de Food.com tendrían reloj, por lo que el escenario de cien veces el volumen sirve solo para analizar sensibilidad.
+
+Comprobamos que el lote observado cabe en una máquina; sin embargo, el proceso mantiene claves de deduplicación en memoria. Para volúmenes mayores a aproximadamente 30 millones de filas proponemos trasladar esa operación a almacenamiento particionado. Ese valor es una referencia conservadora de planificación, no una medición del uso máximo de memoria. Para el escenario de cien veces el volumen recomendamos Spark, con particiones por fecha y dispositivo, y archivos Parquet por fecha. Los datos actuales no justifican un clúster distribuido.
+\section{Reproducibilidad}
+Dejamos las dependencias declaradas en \texttt{pyproject.toml}. El notebook y el script \texttt{src/pipeline\_e2.py} reproducen el procesamiento cuando DuckDB está instalado y los datos se encuentran en \texttt{datos/} o en la ubicación definida por \texttt{INF3862\_DATA\_DIR}. El flujo genera archivos Parquet, dimensiones, resultados de consultas y el reporte \texttt{quality\_report.json}. Estos productos se pueden regenerar sin reemplazar las fuentes originales.\end{document}
