@@ -77,11 +77,13 @@ deja el mismo estado final\footnote{Hagedorn, \emph{Clase 02}, pág. 24:
 \textquotedbl{}Idempotencia: repetir la misma carga produce el mismo estado
 final\textquotedbl{}.}. Una falla a la mitad deja una carpeta incompleta,
 que el reintento borra entera, porque cada tarea empieza borrando su destino.
+El notebook repite silver y gold después de una corrida completa, y las siete
+tablas gold quedan con las mismas filas (17497 en
+\texttt{hecho\_usuario\_dia}).
+
 En la operación diaria, cada tarea se reintentaría 2 veces, con 10 minutos
 entre intentos; si vuelve a fallar, el DAG se detiene y el dashboard sigue con
-los datos del día anterior. El notebook repite silver y gold después de una
-corrida completa, y las siete tablas gold quedan con las mismas filas (17497
-en \texttt{hecho\_usuario\_dia}).
+los datos del día anterior.
 
 Mientras se reescribe una carpeta, el dashboard podría leerla a medio
 escribir. En la operación diaria, gold se escribiría en una carpeta nueva y la
@@ -92,8 +94,9 @@ consulta mientras corre.
 
 \pregunta{¿Cómo se tratan los registros que llegan atrasados?} No se
 descartan: silver los guarda en la partición de su fecha de medición, no en la
-de su recepción. El prototipo procesa el lote completo en cada ejecución. En
-la operación diaria, como el atraso máximo observado es de 4 días (5.2), la
+de su recepción. El prototipo procesa el lote completo en cada ejecución.
+
+En la operación diaria, como el atraso máximo observado es de 4 días (5.2), la
 ejecución del día $d$ vuelve a escribir las particiones de los días $d-4$ a $d$, y gold
 recalcula los meses que tocan esos días. Una medición que llegue más tarde queda en bronze
 y no entra en silver hasta que se reprocese su día. Por eso la ejecución
@@ -152,10 +155,12 @@ particionados por mes:
   día local con mediciones o comidas. En los 1167 días con comidas pero sin
   mediciones (674 anteriores a la primera vinculación de un reloj y 493
   posteriores), los pasos quedan nulos y no en cero, porque el
-  reloj no midió. La frecuencia en reposo, el
-  promedio entre las 2:00 y las 4:59 hora local fuera de sesiones (E1), en
-  horas con al menos media hora de mediciones (30 en Pulso S y 6 en FitBand 2), existe en 11823 días de 216 usuarios: los mismos
-  216 con mediciones de madrugada que definió la E1.
+  reloj no midió.
+  \item \textbf{Frecuencia en reposo:} el promedio entre las 2:00 y las 4:59
+  hora local fuera de sesiones (E1), en horas con al menos media hora de
+  mediciones (30 en Pulso S, que mide cada minuto, y 6 en FitBand 2, que mide
+  cada cinco, según \texttt{wearable/LEEME.md}). Existe en 11823 días de 216
+  usuarios: los mismos 216 con mediciones de madrugada que definió la E1.
   \item \textbf{\texttt{hecho\_usuario\_reloj\_dia}:} 16330 filas, una por
   usuario, día y reloj, que la consulta 5 agrupa por modelo.
   \item \textbf{\texttt{hecho\_comida}:} 22058 comidas con sus nutrientes
@@ -176,8 +181,8 @@ nombre: 469 nombres corresponden a dos o más recetas.
   y el cuartil 4, 8822; el que menos camina es el cuartil 2 (8070). El cuartil
   4 consume más sodio (4588 mg), grasa saturada (53.6 g) y fibra (18.1 g) que
   los otros tres.
-  \item \textbf{Consulta 5, pasos semanales por modelo:} los dos modelos difieren hasta en 320 pasos
-  semanales. En las 8 semanas completas (2007-W50 y 2008-W07 tienen menos de la
+  \item \textbf{Consulta 5, pasos semanales por modelo:} el promedio semanal de pasos diarios de los dos
+  modelos difiere hasta en 320 pasos. En las 8 semanas completas (2007-W50 y 2008-W07 tienen menos de la
   mitad de las filas), la diferencia va de 23 a 320 pasos, a lo más el 3.8\%, y
   FitBand 2 supera a Pulso S en 5. Esa diferencia es del mismo tamaño que la
   que separa al cuartil 1 del 4 en la consulta 4 (307 pasos). Por lo tanto, sin
@@ -204,7 +209,7 @@ Son medianas de 7 ejecuciones en el contenedor (12 CPU y 10.2 GB de memoria).
   su tipo. El CSV guarda filas de texto: hay que leer las 18 columnas de cada
   fila, detectar sus tipos y convertir el texto en números y fechas.
   \item \textbf{Compresión:} Parquet guarda los valores en binario y juntos
-  por columna, que se parecen entre sí, y los comprime con ZSTD; por eso ocupa
+  por columna; los valores de una columna se parecen entre sí, y Parquet los comprime con ZSTD; por eso ocupa
   4.1 veces menos en disco\footnote{Hagedorn, \emph{Clase 01},
   pág. 27: \textquotedbl{}Los valores similares se comprimen
   mejor\textquotedbl{}, con \textquotedbl{}Menos espacio y menos bytes
@@ -265,7 +270,8 @@ un servidor con más memoria; con el volumen x100, no.
   usuarios de Food.com, que caben en los discos de una máquina, y unos 275
   TB en el escenario x100, que no caben en una máquina.
   \item \textbf{Tiempo:} el lote diario tardaría 5.10 minutos, y volver a
-  procesar los 3 años, unas 93.1 horas. En el escenario x100, el lote diario
+  procesar los 3 años, unas 93.1 horas, casi 4 días, aceptable para un reproceso
+  que solo se hace cuando cambia una regla. En el escenario x100, el lote diario
   tardaría 510.14 minutos: todavía termina antes del día siguiente, pero volver
   a procesar los 3 años tardaría unas 9309.97 horas (388 días).
 \end{itemize}
