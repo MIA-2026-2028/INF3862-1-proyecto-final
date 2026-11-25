@@ -97,12 +97,13 @@ consulta mientras corre.
 descartan: silver los guarda en la partición de su fecha de medición, no en la
 de su recepción. El prototipo procesa el lote completo en cada ejecución.
 
-En la operación diaria, como el atraso máximo observado es de 4 días (5.2), la
-ejecución del día $d$ vuelve a escribir las particiones de los días $d-4$ a $d$, y gold
-recalcula los meses que tocan esos días. Una medición que llegue más tarde queda en bronze
-y no entra en silver hasta que se reprocese su día. Por eso la ejecución
-diaria también contaría cuántas llegan fuera de la ventana, y si aparecieran,
-se ampliaría la ventana.
+En la operación diaria, la ejecución del día $d$ procesa solo los archivos
+recibidos ese día. Cada medición atrasada se agrega como un archivo nuevo en la
+partición de su fecha de medición, después de comprobar, leyendo solo las
+columnas de reloj y marca de tiempo de esa partición, que no esté guardada:
+así una copia reenviada otro día no se duplica, y repetir el lote del día
+tampoco. Con el atraso máximo observado de 4 días (5.2), cada lote toca a lo
+más las particiones de $d-4$ a $d$, y gold recalcula los meses de esas fechas.
 
 \section{5.2 Implementación mínima}
 
@@ -229,7 +230,8 @@ Son medianas de 7 ejecuciones en el contenedor (12 CPU y 10.2 GB de memoria).
 reloj, a 1 y 3 años, y en un escenario x100?} Supuesto, como cota superior: los 271907
 usuarios que reseñan en Food.com tienen reloj y generan, como los 300 actuales, 849.2
 mediciones por día. El escenario x100 multiplica esos usuarios por 100 y se estima a 3 años, el
-caso más grande. Los
+caso más grande. El lote diario son las mediciones recibidas en un día (5.1), y
+su tiempo cuenta bronze y silver, no gold. Los
 tamaños y tiempos se extrapolan en forma lineal desde la corrida del notebook
 (7.43 bytes por medición en bronze y 3.43 en silver; 20.6 s de bronze y silver
 para 15540132 mediciones): son estimaciones, no mediciones. Silver se estima sobre las mediciones antes de
