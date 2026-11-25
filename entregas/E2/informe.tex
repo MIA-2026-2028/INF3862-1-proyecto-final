@@ -77,7 +77,8 @@ tiempo antes de escribir. Por lo tanto, repetir una tarea después de una falla
 deja el mismo estado final\footnote{Hagedorn, \emph{Clase 02}, pág. 24:
 \textquotedbl{}Idempotencia: repetir la misma carga produce el mismo estado
 final\textquotedbl{}.}. Una falla a la mitad deja una carpeta incompleta,
-que el reintento borra entera, porque cada tarea empieza borrando su destino
+que el reintento borra entera, porque cada tarea borra cada carpeta justo
+antes de escribirla
 (deducción del código, no probada con una falla).
 El notebook repite silver y gold después de una corrida completa, y las siete
 tablas gold quedan con la misma cantidad de filas (17497 en
@@ -110,9 +111,10 @@ más las particiones de $d-4$ a $d$, y gold recalcula los meses de esas fechas.
 
 El notebook \texttt{entregas/E2/src/notebook\_e2.ipynb} corre de principio a fin con
 DuckDB, en el contenedor Docker del repositorio (README), sobre los datos completos del curso
-(61 días de los 300 usuarios con reloj): los datos que procesa pesan 296 MB, de los cuales
+(61 días de los 300 usuarios con reloj): los datos que procesa pesan 296 MB (sin las reseñas, que solo se leen para
+contar usuarios en 5.4), de los cuales
 115.5 MB son mediciones y 178.7 MB recetas (Paso 1), y bronze y silver
-tardan 20.6 s, de modo que no hace falta una muestra. El README explica cómo
+tardan 20.6 s (5.4 del notebook), de modo que no hace falta una muestra. El README explica cómo
 obtener los datos y ejecutarlo.
 
 \pregunta{¿Qué reglas de calidad se aplican y cuántos registros afecta cada
@@ -186,9 +188,9 @@ nombre: 469 nombres corresponden a dos o más recetas.
   y el cuartil 4, 8822; el que menos camina es el cuartil 2 (8070). El cuartil
   4 consume más sodio (4588 mg), grasa saturada (53.6 g) y fibra (18.1 g) que
   los otros tres.
-  \item \textbf{Consulta 5, pasos semanales por modelo:} en las 8 semanas completas (2007-W50 y 2008-W07 tienen menos de la
-  mitad de las filas), la diferencia entre FitBand 2 y Pulso S cambia de signo
-  semana a semana, de $-273$ a $+320$ pasos, y en promedio es de 55 pasos a favor
+  \item \textbf{Consulta 5, pasos semanales por modelo:} en las 8 semanas completas (2007-W50 y 2008-W07 tienen 80 y 314 filas
+  de FitBand 2, frente a 595 a 751 en las demás), la diferencia entre FitBand 2
+  y Pulso S es negativa en 3 semanas y positiva en 5, de $-273$ a $+320$ pasos, y en promedio es de 55 pasos a favor
   de FitBand 2. Aun si un cuartil tuviera solo usuarios de un modelo y otro
   solo del otro, el modelo movería su diferencia unos 55 pasos, menos que los
   307 que separan al cuartil 1 del 4 en la consulta 4. Por lo tanto, la
@@ -235,8 +237,8 @@ reloj, a 1 y 3 años, y en un escenario x100?} Supuesto: los 271907
 usuarios que reseñan en Food.com tienen reloj y generan, como los 300 actuales, 849.2
 mediciones por día. Esa tasa reparte las mediciones en todos los días del
 período, también los días antes de vincular el reloj; por día con mediciones
-son 951.6 (15540132 en 16330 días, Paso 4), de modo que las cifras pueden
-quedar hasta 12\% bajo. El escenario x100 multiplica esos usuarios por 100 y se estima a 3 años, el
+son 951.6 (15540132 en los 16330 días de usuario y reloj con mediciones, Paso
+4), de modo que las cifras pueden quedar un 10.8\% bajo. El escenario x100 multiplica esos usuarios por 100 y se estima a 3 años, el
 caso más grande. El lote diario son las mediciones recibidas en un día (5.1), y
 su tiempo cuenta bronze y silver, no gold. Los
 tamaños y tiempos se extrapolan en forma lineal desde la corrida del notebook
@@ -265,8 +267,8 @@ Food.com x100, 3 años & 23090 millones & 25283.55 mil millones & 187916.5 GB &
 por qué recurso, dejaría de alcanzar?} Con todos los usuarios de Food.com, sí, en
 un servidor con más memoria; con el volumen x100, no.
 \begin{itemize}
-  \item \textbf{Memoria:} es el primer límite del contenedor, porque las
-  tareas de bronze y silver leen las mediciones a tablas en memoria. Supuesto:
+  \item \textbf{Memoria:} es el primer límite del contenedor: el proceso
+  guarda las mediciones en tablas en memoria (crudas, sin repetidos y limpias). Supuesto:
   la memoria crece en forma lineal con las mediciones; no se probó si DuckDB
   puede seguir usando disco cuando le falta memoria.
   \begin{itemize}
@@ -296,9 +298,9 @@ mismo nodo los datos que quedaron en particiones distintas\footnote{Hagedorn,
 \emph{Clase 04}, pág. 15: \textquotedbl{}Agrupar es wide: el shuffle reúne los
 aportes de cada país\textquotedbl{}.}:
 \begin{itemize}
-  \item \textbf{Con shuffle, si los datos no están particionados por reloj:}
-  quitar repetidos por reloj y marca de tiempo; sumar pasos por usuario, reloj
-  y día, y promediar la frecuencia cardíaca por usuario, día y hora; juntar
+  \item \textbf{Con shuffle:} quitar repetidos por reloj y marca de tiempo y
+  sumar pasos por usuario, reloj y día, si los datos no están repartidos por
+  reloj; promediar la frecuencia cardíaca por usuario, día y hora; juntar
   por usuario y día los agregados de mediciones, sesiones y comidas; y ordenar
   a los usuarios en cuartiles, que lleva todos los perfiles a una sola
   partición: hoy 216 filas y, con todos los usuarios de Food.com, unas 196 mil.
