@@ -176,12 +176,13 @@ nombre: 469 nombres corresponden a dos o más recetas.
   y el cuartil 4, 8822; el que menos camina es el cuartil 2 (8070). El cuartil
   4 consume más sodio (4588 mg), grasa saturada (53.6 g) y fibra (18.1 g) que
   los otros tres.
-  \item \textbf{Consulta 5, pasos semanales por modelo:} los dos modelos reportan pasos parecidos. En
-  las 8 semanas completas (2007-W50 y 2008-W07 tienen menos de la mitad de las
-  filas), la diferencia va de 23 a 320 pasos, a lo más el 3.8\%, y FitBand 2
-  supera a Pulso S en 5. Esa diferencia es menor que la que separa a los
-  cuartiles 2 y 4 de la consulta 4 (752 pasos), de modo que la consulta 4 junta
-  ambos modelos sin corregir sus pasos.
+  \item \textbf{Consulta 5, pasos semanales por modelo:} los dos modelos difieren hasta en 320 pasos
+  semanales. En las 8 semanas completas (2007-W50 y 2008-W07 tienen menos de la
+  mitad de las filas), la diferencia va de 23 a 320 pasos, a lo más el 3.8\%, y
+  FitBand 2 supera a Pulso S en 5. Esa diferencia es del mismo tamaño que la
+  que separa al cuartil 1 del 4 en la consulta 4 (307 pasos). Por lo tanto, sin
+  corregir por modelo de reloj, la consulta 4 no permite atribuir a los hábitos
+  las diferencias de pasos entre cuartiles.
   \item \textbf{Consulta 6, recetas más preparadas por cuartil:} ninguna receta se repite más de 4 veces en un
   cuartil, entre 15889 comidas de usuarios con cuartil. El ranking de recetas
   no distingue a los cuartiles.
@@ -245,25 +246,23 @@ Food.com x100, 3 años & 23090 millones & 25283.55 mil millones & 187916.5 GB &
 \endgroup
 
 \pregunta{¿Seguiría funcionando el pipeline en una máquina? ¿En qué punto, y
-por qué recurso, dejaría de alcanzar?} Con todos los usuarios de Food.com, sí,
-si procesa cada archivo horario por separado; con el volumen x100, no.
+por qué recurso, dejaría de alcanzar?} Con todos los usuarios de Food.com, sí, en
+un servidor con más memoria; con el volumen x100, no.
 \begin{itemize}
-  \item \textbf{Memoria:} es el primer límite del diseño actual, porque
-  las tareas de bronze y silver leen las mediciones a tablas en memoria.
+  \item \textbf{Memoria:} es el primer límite del contenedor, porque las
+  tareas de bronze y silver leen las mediciones a tablas en memoria. Supuesto:
+  la memoria crece en forma lineal con las mediciones.
   \begin{itemize}
-    \item Hoy: la corrida usó 6.1 GB de 10.2 GB con 15540132 mediciones.
-    \item Food.com: un lote diario tiene 15 veces más mediciones y, en forma
-    lineal, necesitaría unos 91 GB, casi nueve veces la memoria del
-    contenedor. La solución es procesar cada archivo horario por separado
-    (9.6 millones de mediciones, menos que los 61 días actuales), quitar sus
-    repetidos contra las particiones de silver de los días $d-4$ a $d$, leídas
-    desde Parquet, y escribirlo directo en Parquet.
-    \item x100: un solo archivo horario tendría 962.1 millones de mediciones
-    y, en forma lineal, necesitaría unos 378 GB, 37 veces la memoria del
-    contenedor.
+    \item Hoy: el proceso del notebook llegó a 6.1 GB de 10.2 GB, el pico de
+    todas sus tareas, con 15540132 mediciones.
+    \item Food.com: un lote diario tiene 15 veces más mediciones y
+    necesitaría unos 91 GB. No cabe en el contenedor, pero sí en un servidor de
+    128 GB: basta con escalamiento vertical, una máquina más grande.
+    \item x100: el lote diario necesitaría unos 9100 GB de memoria, más de
+    lo que tiene una máquina.
   \end{itemize}
   \item \textbf{Disco:} a 3 años, bronze y silver suman 2747.17 GB con los
-  usuarios de Food.com, que caben en una máquina con 3 TB de disco, y unos 275
+  usuarios de Food.com, que caben en los discos de una máquina, y unos 275
   TB en el escenario x100, que no caben en una máquina.
   \item \textbf{Tiempo:} el lote diario tardaría 5.10 minutos, y volver a
   procesar los 3 años, unas 93.1 horas. En el escenario x100, el lote diario
@@ -302,8 +301,8 @@ aportes de cada país\textquotedbl{}.}:
 \pregunta{¿Justifica hoy el caso un procesamiento distribuido?} No. Se
 justificaría recién en el escenario x100: los 3 años ocuparían unos 275 TB y
 volver a procesarlos tardaría 388 días en una máquina. Hoy los datos pesan 296 MB (5.2) y el pipeline tarda 20.6 s en bronze y
-silver; con todos los usuarios de Food.com, el lote diario sigue cabiendo en una
-máquina si se procesa por archivo horario.
+silver; con todos los usuarios de Food.com, el lote diario cabe en un servidor de
+128 GB de memoria.
 
 \anexo{1}{Bibliografía}
 
