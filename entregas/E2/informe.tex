@@ -46,7 +46,7 @@ mes & El dashboard del equipo de nutrición (consultas 4 y 6), el analista
 
 \pregunta{¿Qué tareas tiene el DAG, cómo dependen entre sí y con qué
 frecuencia corre?} Corre una vez al día, después de recibir los archivos
-horarios del día anterior (uno por hora con datos), y cada tarea empieza cuando termina la anterior.
+horarios del día anterior (uno por cada hora en que llegaron mediciones), y cada tarea empieza cuando termina la anterior.
 Las tareas con fondo azul están implementadas en \texttt{pipeline.py}, y el
 notebook las ejecuta en orden; las de borde discontinuo son la operación diaria
 propuesta.
@@ -76,12 +76,13 @@ tiempo antes de escribir. Por lo tanto, repetir una tarea después de una falla
 deja el mismo estado final\footnote{Hagedorn, \emph{Clase 02}, pág. 24:
 \textquotedbl{}Idempotencia: repetir la misma carga produce el mismo estado
 final\textquotedbl{}.}. Una falla a la mitad deja una carpeta incompleta,
-que el reintento borra entera, porque cada tarea empieza borrando su destino.
+que el reintento borra entera, porque cada tarea empieza borrando su destino
+(deducción del código, no probada con una falla).
 El notebook repite silver y gold después de una corrida completa, y las siete
 tablas gold quedan con las mismas filas (17497 en
 \texttt{hecho\_usuario\_dia}).
 
-En la operación diaria, cada tarea se reintentaría 2 veces, con 10 minutos
+Propuesta para la operación diaria: cada tarea se reintentaría 2 veces, con 10 minutos
 entre intentos; si vuelve a fallar, el DAG se detiene y el dashboard sigue con
 los datos del día anterior.
 
@@ -134,11 +135,12 @@ sus minutos & 345599 mediciones (2.2\%); 48 sesiones\\\hline
 Nulos & Conserva las mediciones sin frecuencia cardíaca, porque sus pasos
 valen, y las deja fuera del promedio de reposo & 349931 (2.3\% de las
 15194533 sin repetidos)\\\hline
-Rangos válidos & Supuesto: frecuencia entre 20 y 250 latidos por minuto;
-pasos y calorías no negativos & 0\\\hline
+Rangos válidos & Supuesto: frecuencia entre 20 y 250 latidos por minuto.
+Marca la frecuencia fuera de ese rango y la deja fuera del promedio de
+reposo; cuenta los pasos y calorías negativos & 0\\\hline
 Atrasos & Guarda cada medición en el día en que se midió, no en el que llegó. Más
 de 1 hora de atraso significa que llega en un archivo horario posterior &
-8957451 (57.6\%) llegan más de 1 hora después de medirse; 2185094, otro día UTC (hasta 4 días)\\\hline
+8957451 (59.0\% de las 15194533 sin repetidos) llegan más de 1 hora después de medirse; 2185094, otro día UTC (hasta 4 días)\\\hline
 \end{tabularx}
 \endgroup
 
@@ -181,13 +183,13 @@ nombre: 469 nombres corresponden a dos o más recetas.
   y el cuartil 4, 8822; el que menos camina es el cuartil 2 (8070). El cuartil
   4 consume más sodio (4588 mg), grasa saturada (53.6 g) y fibra (18.1 g) que
   los otros tres.
-  \item \textbf{Consulta 5, pasos semanales por modelo:} el promedio semanal de pasos diarios de los dos
-  modelos difiere hasta en 320 pasos. En las 8 semanas completas (2007-W50 y 2008-W07 tienen menos de la
+  \item \textbf{Consulta 5, pasos semanales por modelo:} en las 8 semanas completas (2007-W50 y 2008-W07 tienen menos de la
   mitad de las filas), la diferencia va de 23 a 320 pasos, a lo más el 3.8\%, y
   FitBand 2 supera a Pulso S en 5. Esa diferencia es del mismo tamaño que la
-  que separa al cuartil 1 del 4 en la consulta 4 (307 pasos). Por lo tanto, sin
-  corregir por modelo de reloj, la consulta 4 no permite atribuir a los hábitos
-  las diferencias de pasos entre cuartiles.
+  que separa al cuartil 1 del 4 en la consulta 4 (307 pasos), y la consulta 5
+  no muestra cuántos usuarios de cada modelo tiene cada cuartil. Por lo tanto,
+  la consulta 4 no permite descartar que el modelo de reloj explique sus
+  diferencias de pasos.
   \item \textbf{Consulta 6, recetas más preparadas por cuartil:} ninguna receta se repite más de 4 veces en un
   cuartil, entre 15889 comidas de usuarios con cuartil. El ranking de recetas
   no distingue a los cuartiles.
@@ -260,9 +262,11 @@ un servidor con más memoria; con el volumen x100, no.
   \begin{itemize}
     \item Hoy: el proceso del notebook llegó a 6.1 GB de 10.2 GB, el pico de
     todas sus tareas, con 15540132 mediciones.
-    \item Food.com: un lote diario tiene 15 veces más mediciones y
-    necesitaría unos 91 GB. No cabe en el contenedor, pero sí en un servidor de
-    128 GB: basta con escalamiento vertical, una máquina más grande.
+    \item Punto en que deja de alcanzar: con 10.2 GB, el contenedor procesa
+    hasta unos 26 millones de mediciones por lote, unos 30 mil usuarios.
+    \item Food.com: un lote diario tiene 15 veces más mediciones que los 61
+    días actuales juntos y necesitaría unos 91 GB. No cabe en el contenedor, pero sí en un servidor de
+    128 GB (supuesto de tamaño): basta con escalamiento vertical, una máquina más grande.
     \item x100: el lote diario necesitaría unos 9100 GB de memoria, más de
     lo que tiene una máquina.
   \end{itemize}
@@ -283,25 +287,26 @@ mismo nodo los datos que quedaron en particiones distintas\footnote{Hagedorn,
 aportes de cada país\textquotedbl{}.}:
 \begin{itemize}
   \item \textbf{Con shuffle, si los datos no están particionados por reloj:}
-  quitar repetidos por reloj y marca de tiempo; sumar pasos y promediar la
-  frecuencia cardíaca por usuario, reloj, día y hora; y ordenar a
-  los usuarios en cuartiles, que lleva todos los perfiles a una sola
+  quitar repetidos por reloj y marca de tiempo; sumar pasos por usuario, reloj
+  y día, y promediar la frecuencia cardíaca por usuario, día y hora; juntar
+  por usuario y día los agregados de mediciones, sesiones y comidas; y ordenar
+  a los usuarios en cuartiles, que lleva todos los perfiles a una sola
   partición, aunque son solo 216 filas.
   \item \textbf{Sin shuffle, con broadcast:} unir las mediciones con los 315
-  relojes (para conocer usuario, modelo y zona horaria) y con las 4792
-  sesiones (para excluir de la frecuencia en reposo las mediciones de una
+  relojes (para conocer usuario, modelo y zona horaria) y con las sesiones del
+  día, unas 71 mil con todos los usuarios de Food.com (para excluir de la frecuencia en reposo las mediciones de una
   sesión), y las comidas con las recetas, si antes se reduce
   el catálogo de 522517 recetas a las 20654 que aparecen en las comidas, como
   \texttt{dim\_receta}: copiar la tabla pequeña a cada nodo evita redistribuir
   la grande\footnote{Hagedorn, \emph{Clase 04}, pág. 21: \textquotedbl{}Con
   broadcast, mover la tabla pequeña evita redistribuir la grande para este
   join\textquotedbl{}.}.
-  \item \textbf{Partición propuesta en Spark:} por fecha de medición, como
-  silver hoy, y además por reloj. Todas las
-  copias de una medición repetida quedan en la misma partición, de modo que
-  quitar repetidos y sumar por reloj y hora no mueve datos. Solo se mueven las
-  sumas por reloj y hora, para juntarlas por usuario y día local, que puede
-  caer en otra fecha UTC.
+  \item \textbf{Partición propuesta en Spark:} repartir en memoria las
+  mediciones de cada lote por reloj (no como carpetas en disco, que siguen por
+  fecha de medición). Todas las copias de una medición y todas las mediciones
+  de un reloj quedan en la misma partición, de modo que quitar repetidos y
+  sumar pasos por reloj y día local no mueve datos. Solo se mueven las sumas
+  diarias por reloj, una fila por reloj y día, para juntarlas por usuario.
 \end{itemize}
 
 \pregunta{¿Justifica hoy el caso un procesamiento distribuido?} No. Se
