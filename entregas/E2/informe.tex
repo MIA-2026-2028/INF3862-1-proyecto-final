@@ -14,12 +14,12 @@
 llegan y se transforman después, en el destino analítico\footnote{Hagedorn,
 \emph{Clase 02}, pág. 26, sobre ELT: \textquotedbl{}Conservar datos extraídos y
 transformar en el destino\textquotedbl{}.}, por dos condiciones del caso.
-Primero, corregir una regla de calidad (por ejemplo, el mínimo de mediciones
-por hora de la frecuencia en reposo) o la unificación de los dos modelos de
+Primero, corregir una regla de calidad (por ejemplo, el rango válido de
+frecuencia cardíaca) o la unificación de los dos modelos de
 reloj, que envían los mismos campos con nombres y formatos distintos, exige
-recalcular desde los originales. Segundo, el destino puede transformar: DuckDB
-procesa bronze y silver en 20.8 s (5.2), de modo que no hace falta un entorno
-de transformación previo\footnote{Hagedorn, \emph{Clase 02}, pág. 26, sobre
+recalcular desde los originales. Segundo, el destino puede transformar: DuckDB lee
+directo los JSON comprimidos, CSV y Parquet de bronze y los transforma con SQL,
+de modo que no hace falta un entorno de transformación previo\footnote{Hagedorn, \emph{Clase 02}, pág. 26, sobre
 ELT: \textquotedbl{}El destino debe poder procesar y gobernar los
 datos\textquotedbl{}.}.
 
@@ -47,7 +47,7 @@ mes & El dashboard del equipo de nutrición (consultas 4 y 6), el analista
 \pregunta{¿Qué tareas tiene el DAG, cómo dependen entre sí y con qué
 frecuencia corre?} Corre una vez al día, después de recibir los archivos
 horarios del día anterior (uno por hora con datos), y cada tarea empieza cuando termina la anterior.
-Las tareas con fondo azul están implementadas en \texttt{src/pipeline.py}, y el
+Las tareas con fondo azul están implementadas en \texttt{pipeline.py}, y el
 notebook las ejecuta en orden; las de borde discontinuo son la operación diaria
 propuesta.
 
@@ -75,31 +75,35 @@ carpetas que produce, y silver deja una sola medición por reloj y marca de
 tiempo antes de escribir. Por lo tanto, repetir una tarea después de una falla
 deja el mismo estado final\footnote{Hagedorn, \emph{Clase 02}, pág. 24:
 \textquotedbl{}Idempotencia: repetir la misma carga produce el mismo estado
-final\textquotedbl{}.}. El notebook lo comprueba: al repetir silver y gold, las
-siete tablas gold quedan con las mismas filas (17497 en
-\texttt{hecho\_usuario\_dia}). Mientras se reescribe una carpeta, el dashboard
-podría leerla a medio escribir; por eso la última tarea publica solo después de
-validar los conteos. La E1 proponía tablas Delta, que confirman una
-reescritura como una unidad; el prototipo usa carpetas de Parquet sin Delta,
-porque corre en una máquina y nadie consulta mientras escribe. Este cambio y
-los demás respecto de la E1 están en \texttt{decisiones.md}.
+final\textquotedbl{}.}. Una falla a la mitad deja una carpeta incompleta,
+que el reintento borra entera. El notebook repite silver y gold después de una
+corrida completa, y las siete tablas gold quedan con las mismas filas (17497
+en \texttt{hecho\_usuario\_dia}).
+
+Mientras se reescribe una carpeta, el dashboard podría leerla a medio
+escribir. En la operación diaria, gold se escribiría en una carpeta nueva y la
+última tarea, después de validar los conteos, la publicaría en lugar de la
+anterior. La E1 proponía tablas Delta, que confirman una reescritura como una
+unidad; el prototipo escribe directo en Parquet sin Delta, porque nadie
+consulta mientras corre. Este cambio y los demás respecto de la E1 están en
+\texttt{decisiones.md}.
 
 \pregunta{¿Cómo se tratan los registros que llegan atrasados?} No se
 descartan: silver los guarda en la partición de su fecha de medición, no en la
 de su recepción. El prototipo procesa el lote completo en cada ejecución. En
 la operación diaria, como el atraso máximo observado es de 4 días (5.2), la
 ejecución del día $d$ vuelve a escribir las particiones de los días $d-4$ a $d$, y gold
-recalcula los meses que tocan esos días. Una medición que llegue después de
-esa ventana queda en bronze y entra en el siguiente reproceso completo, que
-se ejecuta cuando cambia una regla de calidad.
+recalcula los meses que tocan esos días. La ejecución diaria contaría además las
+mediciones que llegan fuera de esa ventana; si aparecieran, se ampliaría la
+ventana.
 
 \section{5.2 Implementación mínima}
 
-El notebook \texttt{notebooks/proyecto.ipynb} corre de principio a fin con
-DuckDB, en el contenedor del repositorio, sobre los datos completos del curso
+El notebook \texttt{entregas/E2/src/notebook\_e2.ipynb} corre de principio a fin con
+DuckDB, en el contenedor Docker del repositorio (README), sobre los datos completos del curso
 (61 días de los 300 usuarios con reloj): el lote pesa 296 MB, de los cuales
 115.5 MB son mediciones y 178.7 MB recetas (E1), y bronze y silver
-tardan 20.8 s, de modo que no hace falta una muestra. El README explica cómo
+tardan 20.6 s, de modo que no hace falta una muestra. El README explica cómo
 obtener los datos y ejecutarlo.
 
 \pregunta{¿Qué reglas de calidad se aplican y cuántos registros afecta cada
@@ -109,8 +113,9 @@ una?} Seis reglas, sobre las 15540132 mediciones leídas de 1449 archivos:
 \begin{tabularx}{\textwidth}{|L{2.9cm}|Y|>{\RaggedRight\arraybackslash}p{3.6cm}|}\hline
 \enc{\textbf{Regla}} & \enc{\textbf{Qué hace y qué consecuencia tiene}} &
 \enc{\textbf{Registros}}\\\hline
-Campos obligatorios & Unifica los dos esquemas de reloj y exige reloj y
-marca de tiempo en cada medición & 0\\\hline
+Tipos & Convierte a un solo tipo las marcas de tiempo en
+ISO 8601 y en milisegundos de los dos relojes; descarta las mediciones sin
+reloj o cuya marca no se puede convertir & 0\\\hline
 Claves que no calzan & Descarta las mediciones de relojes que no están en
 el registro de dispositivos o tomadas fuera del período en que el reloj estaba
 vinculado a su usuario, y comidas cuya receta
@@ -126,7 +131,7 @@ valen, y las deja fuera del promedio de reposo & 349931 (2.3\% de las
 Rangos válidos & Supuesto: frecuencia entre 20 y 250 latidos por minuto;
 pasos y calorías no negativos & 0\\\hline
 Atrasos & Guarda cada medición en el día en que se midió, no en el que llegó &
-8957451 llegan más de 1 hora después de medirse; 2185094, otro día (hasta 4 días)\\\hline
+8957451 (57.6\%) llegan más de 1 hora después de medirse; 2185094, otro día UTC (hasta 4 días)\\\hline
 \end{tabularx}
 \endgroup
 
@@ -141,13 +146,13 @@ particionados por mes:
 \begin{itemize}
   \item \textbf{\texttt{hecho\_usuario\_dia}:} 17497 filas, una por usuario y
   día local con mediciones o comidas. En los 1167 días con comidas pero sin
-  mediciones (674 anteriores a la vinculación del reloj), los pasos quedan
-  nulos y no en cero, porque el reloj no midió. La frecuencia en reposo, el
+  mediciones (674 anteriores a la vinculación del reloj y 493 en que el reloj
+  vinculado no envió datos), los pasos quedan nulos y no en cero, porque el
+  reloj no midió. La frecuencia en reposo, el
   promedio entre las 2:00 y las 4:59 hora local fuera de sesiones (E1), existe
-  en 11823 días de 216 usuarios, los mismos de la E1: sus 11864 días con datos
-  menos los 41 sin mediciones de madrugada.
-  \item \textbf{\texttt{hecho\_usuario\_reloj\_dia}:} 16330 filas; separa los
-  pasos de cada reloj en los días en que un usuario cambia de modelo.
+  en 11823 días de 216 usuarios, el mismo universo de la E1.
+  \item \textbf{\texttt{hecho\_usuario\_reloj\_dia}:} 16330 filas, una por
+  usuario, día y reloj, que la consulta 5 agrupa por modelo.
   \item \textbf{\texttt{hecho\_comida}:} 22058 comidas con sus nutrientes
   consumidos (nutrientes por porción por porciones).
   \item \textbf{Dimensiones:} 61 fechas, 300 usuarios, 315 relojes y las 20654
@@ -166,10 +171,12 @@ nombre: 469 nombres corresponden a dos o más recetas.
   y el cuartil 4, 8822; el que menos camina es el cuartil 2 (8070). El cuartil
   4 consume más sodio (4588 mg), grasa saturada (53.6 g) y fibra (18.1 g) que
   los otros tres.
-  \item \textbf{Consulta 5, pasos semanales por modelo:} los dos modelos reportan pasos comparables. La
-  diferencia semanal va de 23 a 458 pasos, y FitBand 2 supera a Pulso S en 7
-  de 10 semanas. Por lo tanto, la consulta 4 junta usuarios de ambos modelos
-  sin corregir sus pasos.
+  \item \textbf{Consulta 5, pasos semanales por modelo:} los dos modelos reportan pasos parecidos. En
+  las 8 semanas completas (2007-W50 y 2008-W07 tienen menos de la mitad de las
+  filas), la diferencia va de 23 a 320 pasos, a lo más el 3.8\%, y FitBand 2
+  supera a Pulso S en 5. Esa diferencia es menor que la que separa a los
+  cuartiles 2 y 4 de la consulta 4 (752 pasos), de modo que la consulta 4 junta
+  ambos modelos sin corregir sus pasos.
   \item \textbf{Consulta 6, recetas más preparadas por cuartil:} ninguna receta se repite más de 4 veces en un
   cuartil, entre 15889 comidas de usuarios con cuartil. El ranking de recetas
   no distingue a los cuartiles; el dashboard los compara mejor por nutrientes.
@@ -180,7 +187,7 @@ diagnósticos.
 \section{5.3 Medir y explicar}
 
 \pregunta{¿Cuánto tarda la consulta 4 sobre CSV y sobre Parquet, y por qué?}
-Sobre Parquet tarda 32.17 ms, 7.9 veces menos que sobre CSV (254.43 ms), y
+Sobre Parquet tarda 26.32 ms, 9.0 veces menos que sobre CSV (237.91 ms), y
 ocupa 0.52 MB, 4.1 veces menos que el CSV (2.15 MB), con el mismo resultado.
 Son medianas de 7 ejecuciones en el contenedor (12 CPU y 10.2 GB de memoria).
 \begin{itemize}
@@ -190,15 +197,15 @@ Son medianas de 7 ejecuciones en el contenedor (12 CPU y 10.2 GB de memoria).
   columnar puede leer solo los atributos necesarios\textquotedbl{}.}, ya con
   su tipo. El CSV guarda filas de texto: hay que leer las 18 columnas de cada
   fila y convertir el texto en números y fechas.
-  \item \textbf{Compresión:} Parquet guarda juntos los valores de cada
-  columna, que se parecen entre sí, y los comprime con ZSTD; por eso ocupa 4.1
-  veces menos en disco\footnote{Hagedorn, \emph{Clase 01},
+  \item \textbf{Compresión:} Parquet guarda los valores en binario y juntos
+  por columna, que se parecen entre sí, y los comprime con ZSTD; por eso ocupa
+  4.1 veces menos en disco\footnote{Hagedorn, \emph{Clase 01},
   pág. 27: \textquotedbl{}Los valores similares se comprimen
   mejor\textquotedbl{}, con \textquotedbl{}Menos espacio y menos bytes
   leídos\textquotedbl{}.}.
   \item \textbf{Poda de particiones:} no participa en esta medición. La
   consulta pide el período completo y lee los 3 meses; con un filtro de un
-  mes leería una de las 3 carpetas\footnote{Hagedorn, \emph{Clase 01}, pág. 40:
+  mes leería una de las 3 carpetas (deducción por la partición, no medida)\footnote{Hagedorn, \emph{Clase 01}, pág. 40:
   el particionamiento reduce los \textquotedbl{}Datos a examinar, si el filtro
   permite podar\textquotedbl{}.}.
 \end{itemize}
@@ -206,13 +213,15 @@ Son medianas de 7 ejecuciones en el contenedor (12 CPU y 10.2 GB de memoria).
 \section{5.4 ¿Realmente necesitamos Big Data?}
 
 \pregunta{¿Qué volumen tendría la app con todos los usuarios de Food.com con
-reloj, a 1 y 3 años, y en un escenario x100?} Supuesto: los 271907 usuarios
-que reseñan en Food.com tienen reloj y generan, como los 300 actuales, 849.2
-mediciones por día. El escenario x100 multiplica esos usuarios por 100. Los
+reloj, a 1 y 3 años, y en un escenario x100?} Supuesto, como cota superior: los 271907
+usuarios que reseñan en Food.com tienen reloj y generan, como los 300 actuales, 849.2
+mediciones por día. El escenario x100 multiplica esos usuarios por 100 y se estima a 3 años, el
+caso más grande. Los
 tamaños y tiempos se extrapolan en forma lineal desde la corrida del notebook
-(7.43 bytes por medición en bronze y 3.43 en silver; 20.8 s de bronze y silver
+(7.43 bytes por medición en bronze y 3.43 en silver; 20.6 s de bronze y silver
 para 15540132 mediciones): son estimaciones, no mediciones. Bronze y silver
-cuentan solo las mediciones, que son las que crecen con los usuarios.
+cuentan solo las mediciones: las sesiones y comidas también crecen con los
+usuarios, pero hoy ocupan 0.8 y 1.0 MB, frente a 115.5 MB de mediciones.
 
 \begingroup\iniciartabla\small
 \begin{tabularx}{\textwidth}{|Y|r|r|r|r|r|}\hline
@@ -221,11 +230,11 @@ cuentan solo las mediciones, que son las que crecen con los usuarios.
 Hoy: 300 usuarios, 61 días & 0.25 millones & 0.02 mil millones & 0.12 GB &
 0.05 GB & menos de 1 s\\\hline
 Food.com, 1 año & 230.9 millones & 84.28 mil millones & 626.39 GB & 289.33 GB
-& 5.15 min\\\hline
+& 5.10 min\\\hline
 Food.com, 3 años & 230.9 millones & 252.84 mil millones & 1879.17 GB & 868.00
-GB & 5.15 min\\\hline
+GB & 5.10 min\\\hline
 Food.com x100, 3 años & 23090 millones & 25283.55 mil millones & 187916.5 GB &
-86799.82 GB & 515.09 min\\\hline
+86799.76 GB & 510.14 min\\\hline
 \end{tabularx}
 \endgroup
 
@@ -233,22 +242,27 @@ Food.com x100, 3 años & 23090 millones & 25283.55 mil millones & 187916.5 GB &
 por qué recurso, dejaría de alcanzar?} Con todos los usuarios de Food.com, sí,
 si procesa cada archivo horario por separado; con el volumen x100, no.
 \begin{itemize}
-  \item \textbf{Memoria:} es el primer límite del diseño actual. Bronze y
-  silver guardan las mediciones en tablas en memoria, y la corrida usó 6.0 GB
-  de 10.2 GB con 15540132 mediciones. Un lote diario con todos los usuarios
-  tiene 15 veces más mediciones: extrapolando en forma lineal, necesitaría
-  unos 89 GB, casi nueve veces la memoria del contenedor. La corrección es
-  procesar cada archivo horario por separado (9.6 millones de mediciones,
-  menos que los 61 días actuales) y escribirlo directo en Parquet. En el
-  escenario x100, un solo archivo horario tendría 962.1 millones de
-  mediciones y necesitaría unos 371 GB: ya no cabe en la memoria de una
-  máquina.
-  \item \textbf{Disco:} a 3 años, bronze y silver suman 2747.17 GB, de modo
-  que hace falta una máquina con varios TB de disco.
-  \item \textbf{Tiempo:} el lote diario tardaría 5.15 minutos, y volver a
-  procesar los 3 años, unas 94.0 horas. En el escenario x100, el lote diario
-  tardaría 515.09 minutos y volver a procesar los 3 años, unas 9400.35 horas
-  (392 días).
+  \item \textbf{Memoria:} es el primer límite del diseño actual, porque
+  las tareas de bronze y silver leen las mediciones a tablas en memoria.
+  \begin{itemize}
+    \item Hoy: la corrida usó 6.1 GB de 10.2 GB con 15540132 mediciones.
+    \item Food.com: un lote diario tiene 15 veces más mediciones y, en forma
+    lineal, necesitaría unos 91 GB, casi nueve veces la memoria del
+    contenedor. La solución es procesar cada archivo horario por separado
+    (9.6 millones de mediciones, menos que los 61 días actuales), quitar sus
+    repetidos contra las particiones de silver de los días $d-4$ a $d$, leídas
+    desde Parquet, y escribirlo directo en Parquet.
+    \item x100: un solo archivo horario tendría 962.1 millones de mediciones
+    y, en forma lineal, necesitaría unos 378 GB, 37 veces la memoria del
+    contenedor.
+  \end{itemize}
+  \item \textbf{Disco:} a 3 años, bronze y silver suman 2747.17 GB con los
+  usuarios de Food.com, que caben en una máquina con 3 TB de disco, y unos 275
+  TB en el escenario x100, que no caben en una máquina.
+  \item \textbf{Tiempo:} el lote diario tardaría 5.10 minutos, y volver a
+  procesar los 3 años, unas 93.1 horas. En el escenario x100, el lote diario
+  tardaría 510.14 minutos: todavía termina antes del día siguiente, pero volver
+  a procesar los 3 años tardaría unas 9309.97 horas (388 días).
 \end{itemize}
 
 \pregunta{Si se llevara a Spark, ¿qué operaciones provocarían shuffle y cómo se
@@ -273,15 +287,14 @@ aportes de cada país\textquotedbl{}.}:
   \item \textbf{Partición propuesta en Spark:} por fecha de medición, como
   silver hoy, y además por reloj. Todas las
   copias de una medición repetida quedan en la misma partición, de modo que
-  quitar repetidos y sumar por reloj y día no mueve datos. Solo se mueven las
-  sumas diarias por reloj, una fila por reloj y día, para juntarlas por
-  usuario.
+  quitar repetidos y sumar por reloj y hora no mueve datos. Solo se mueven las
+  sumas por reloj y hora, para juntarlas por usuario y día local, que puede
+  caer en otra fecha UTC.
 \end{itemize}
 
 \pregunta{¿Justifica hoy el caso un procesamiento distribuido?} No. Se
-justificaría recién en el escenario x100: un solo archivo horario necesitaría
-unos 371 GB de memoria y volver a procesar los 3 años tardaría 392 días en una
-máquina. Hoy los datos pesan 296 MB (E1) y el pipeline tarda 20.8 s en bronze y
+justificaría recién en el escenario x100: los 3 años ocuparían unos 275 TB y
+volver a procesarlos tardaría 388 días en una máquina. Hoy los datos pesan 296 MB (E1) y el pipeline tarda 20.6 s en bronze y
 silver; con todos los usuarios de Food.com, el lote diario sigue cabiendo en una
 máquina si se procesa por archivo horario.
 

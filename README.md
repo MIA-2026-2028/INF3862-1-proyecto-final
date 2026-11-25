@@ -88,11 +88,11 @@ docker compose exec -w /proyecto/notebooks jupyter uv run jupyter nbconvert --to
 ```
 
 También se abre en Jupyter Lab y se ejecuta con "Run All". Al cerrar cada
-entrega, `entregas/E<n>/src/` guarda una copia fija del notebook ejecutado y
-de los módulos que usa: esa copia importa los módulos de su propia carpeta,
-de modo que sigue corriendo aunque `src/` cambie en la entrega siguiente. La
-copia no se edita a mano; un cambio se hace en `src/` o `notebooks/` y se
-vuelve a copiar.
+entrega, `entregas/E<n>/src/` guarda una copia fija del notebook con solo
+las secciones de esa entrega, ejecutada desde esa carpeta, y los módulos que
+usa: esa copia importa los módulos de su propia carpeta, de modo que sigue
+corriendo aunque `src/` cambie en la entrega siguiente. La copia no se edita a
+mano; un cambio se hace en `src/` o `notebooks/` y se vuelve a copiar.
 
 ## Generar los informes PDF
 
