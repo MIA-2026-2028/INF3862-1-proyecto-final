@@ -80,11 +80,14 @@ final\textquotedbl{}.}. Una falla a la mitad deja una carpeta incompleta,
 que el reintento borra entera, porque cada tarea borra cada carpeta justo
 antes de escribirla
 (deducción del código, no probada con una falla).
-El notebook repite silver y gold después de una corrida completa, y las siete
-tablas gold quedan con la misma cantidad de filas (17497 en
-\texttt{hecho\_usuario\_dia}); compara conteos, no el contenido.
+El notebook repite silver y gold después de una corrida completa, en la misma
+sesión, y las siete tablas gold quedan con la misma cantidad de filas (17497
+en \texttt{hecho\_usuario\_dia}); compara conteos, no el contenido. En el
+prototipo, bronze se carga en la memoria de esa sesión, de modo que si el
+proceso cae, el reintento empieza desde \texttt{cargar\_bronze}.
 
-Propuesta para la operación diaria: cada tarea se reintentaría 2 veces, con 10 minutos
+Propuesta para la operación diaria: cada tarea leería su entrada de disco,
+para poder reintentarse sola, y se reintentaría 2 veces, con 10 minutos
 entre intentos; si vuelve a fallar, el DAG se detiene y el dashboard sigue con
 los datos del día anterior.
 
@@ -143,7 +146,7 @@ Rangos válidos & Supuesto: frecuencia entre 20 y 250 latidos por minuto.
 Marca la frecuencia fuera de ese rango y la deja fuera del promedio de
 reposo; cuenta los pasos y calorías negativos & 0\\\hline
 Atrasos & Guarda cada medición en el día en que se midió, no en el que llegó. Más
-de 1 hora de atraso significa que llega en un archivo horario posterior &
+de 1 hora de atraso implica que llega en un archivo horario posterior &
 8957451 (59.0\% de las 15194533 sin repetidos) llegan más de 1 hora después de medirse; 2185094, otro día UTC (hasta 4 días de calendario)\\\hline
 \end{tabularx}
 \endgroup
@@ -195,13 +198,15 @@ dos o más recetas.
   de FitBand 2, frente a 595 a 751 en las demás), la diferencia entre FitBand 2
   y Pulso S es negativa en 3 semanas y positiva en 5, de $-273$ a $+320$ pasos, y, ponderando cada semana por sus filas,
   FitBand 2 registra 52 pasos más que Pulso S en el período. Aun si un cuartil
-  tuviera solo usuarios de un modelo y otro solo del otro, el modelo movería su
-  diferencia unos 52 pasos, menos que los 307 que separan al cuartil 1 del 4
-  en la consulta 4, que también promedia todo el período. Por lo tanto, la
+  tuviera solo usuarios de un modelo y otro solo del otro, ese reparto movería
+  su diferencia unos 52 pasos, menos que cualquier diferencia entre los
+  cuartiles de la consulta 4, que también promedia todo el período (de 183 a
+  752 pasos). Por lo tanto, la
   consulta 4 puede juntar los dos modelos sin corregir sus pasos.
   \item \textbf{Consulta 6, recetas más preparadas por cuartil:} ninguna receta se repite más de 4 veces en un
-  cuartil, entre 15889 comidas de usuarios con cuartil. El ranking de recetas
-  no distingue a los cuartiles.
+  cuartil, entre 15889 comidas de usuarios con cuartil. El top 10 de cada cuartil termina en
+  empates de 2 veces, de modo que el ranking de recetas no distingue a los
+  cuartiles.
 \end{itemize}
 Son descripciones de datos sintéticos, no relaciones causales ni
 diagnósticos.
@@ -227,8 +232,8 @@ Son medianas de 7 ejecuciones en el contenedor (12 CPU y 10.2 GB de memoria).
   leídos\textquotedbl{}.}.
   \item \textbf{Poda de particiones:} no participa en esta medición. La
   consulta pide el período completo y lee los 3 meses. Además filtra por
-  \texttt{fecha\_key}, que no es la columna de partición: para podar, tendría
-  que filtrar por \texttt{mes}, y entonces un mes leería una de las 3 carpetas
+  \texttt{fecha\_key}, que no es la columna de partición: para podar carpetas,
+  tendría que filtrar por \texttt{mes}, y entonces un mes leería una de las 3 carpetas
   (deducción por la partición, no medida)\footnote{Hagedorn, \emph{Clase 01}, pág. 40:
   el particionamiento reduce los \textquotedbl{}Datos a examinar, si el filtro
   permite podar\textquotedbl{}.}.
@@ -244,7 +249,8 @@ período, también los días antes de vincular el reloj; por día con mediciones
 son 951.6 (15540132 en los 16330 días de usuario y reloj con mediciones, Paso
 4), de modo que las cifras pueden quedar un 10.8\% bajo. El escenario x100 multiplica esos usuarios por 100 y se estima a 3 años, el
 caso más grande. El lote diario son las mediciones recibidas en un día (5.1), y
-su tiempo cuenta bronze y silver, no gold. Los
+su tiempo y su memoria cuentan bronze y silver del lote; no cuentan la
+comprobación de repetidos contra lo guardado ni el recálculo de gold. Los
 tamaños y tiempos se extrapolan en forma lineal desde la corrida del notebook
 (7.43 bytes por medición en bronze y 3.43 en silver; 20.6 s de bronze y silver
 para 15540132 mediciones): son estimaciones, no mediciones. Silver se estima sobre las mediciones antes de
@@ -268,8 +274,8 @@ Food.com x100, 3 años & 23090 millones & 25283.55 mil millones & 187916.5 GB &
 \endgroup
 
 \pregunta{¿Seguiría funcionando el pipeline en una máquina? ¿En qué punto, y
-por qué recurso, dejaría de alcanzar?} Con todos los usuarios de Food.com, sí, en
-un servidor con más memoria; con el volumen x100, no.
+por qué recurso, dejaría de alcanzar?} Con todos los usuarios de Food.com, sí para
+bronze y silver, en un servidor con más memoria; con el volumen x100, no.
 \begin{itemize}
   \item \textbf{Memoria:} es el primer límite del contenedor: el proceso
   guarda las mediciones en tablas en memoria (crudas, sin repetidos y limpias). Supuesto:
@@ -322,17 +328,19 @@ aportes de cada país\textquotedbl{}.}:
   cada lote por reloj apenas se leen. Ese reparto es un shuffle de todo el
   lote, pero uno solo: después, todas las copias de una medición y todas las
   mediciones de un reloj están en la misma partición, de modo que quitar
-  repetidos y sumar pasos por reloj y día local ya no mueven datos. Luego solo
-  se mueven las sumas diarias por reloj, una fila por reloj y día, para
-  juntarlas por usuario.
+  repetidos dentro del lote y sumar pasos por reloj y día local ya no mueven
+  datos. Luego solo se mueven las sumas diarias por reloj, una fila por reloj
+  y día, para juntarlas por usuario. La comprobación contra lo guardado (5.1)
+  sí es un join con un shuffle, porque silver está guardado por fecha y no por
+  reloj.
 \end{itemize}
 
 \pregunta{¿Justifica hoy el caso un procesamiento distribuido?} No. Se
 justificaría recién en el escenario x100: volver a procesar los 3 años tardaría 388
 días en una máquina, y su lote diario necesitaría 71 veces la memoria del
 servidor de 128 GB. Hoy los datos que procesa pesan 296 MB (5.2) y el pipeline tarda 20.6 s en bronze y
-silver; con todos los usuarios de Food.com, el lote diario cabe en un servidor de
-128 GB de memoria.
+silver; con todos los usuarios de Food.com, bronze y silver del lote diario caben en
+un servidor de 128 GB de memoria.
 
 \anexo{1}{Bibliografía}
 
