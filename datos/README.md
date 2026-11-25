@@ -26,5 +26,5 @@
   de modelamiento de la E3.
 
 Se generan con `notebooks/proyecto.ipynb` o con la copia de cada entrega (`entregas/E2/src/notebook_e2.ipynb`; ver el README de la raíz), sobre
-los datos completos, sin muestra: pesan 296 MB (ver
+los datos completos, sin muestra: los datos que procesa pesan 296 MB, y `reviews.parquet` solo se lee para contar usuarios (ver
 `decisiones.md`).

@@ -30,7 +30,8 @@ datos\textquotedbl{}.}.
 \enc{\textbf{Capa}} & \enc{\textbf{Contenido}} & \enc{\textbf{Formato}} &
 \enc{\textbf{Quién la consume}}\\\hline
 Bronze & Los archivos del curso sin cambios: mediciones por día y hora de
-recepción, dispositivos, sesiones, comidas y recetas & JSON comprimido, CSV,
+recepción, dispositivos, sesiones, comidas, recetas y reseñas (estas solo
+para contar usuarios en 5.4); se leen y unifican en memoria, sin reescribirlas & JSON comprimido, CSV,
 JSONL y Parquet & La tarea silver y cualquier reproceso\\\hline
 Silver & Mediciones unificadas, sin repetidos y tomadas mientras el reloj
 estaba vinculado a su usuario;
@@ -79,8 +80,8 @@ final\textquotedbl{}.}. Una falla a la mitad deja una carpeta incompleta,
 que el reintento borra entera, porque cada tarea empieza borrando su destino
 (deducción del código, no probada con una falla).
 El notebook repite silver y gold después de una corrida completa, y las siete
-tablas gold quedan con las mismas filas (17497 en
-\texttt{hecho\_usuario\_dia}).
+tablas gold quedan con la misma cantidad de filas (17497 en
+\texttt{hecho\_usuario\_dia}); compara conteos, no el contenido.
 
 Propuesta para la operación diaria: cada tarea se reintentaría 2 veces, con 10 minutos
 entre intentos; si vuelve a fallar, el DAG se detiene y el dashboard sigue con
@@ -109,7 +110,7 @@ más las particiones de $d-4$ a $d$, y gold recalcula los meses de esas fechas.
 
 El notebook \texttt{entregas/E2/src/notebook\_e2.ipynb} corre de principio a fin con
 DuckDB, en el contenedor Docker del repositorio (README), sobre los datos completos del curso
-(61 días de los 300 usuarios con reloj): los datos pesan 296 MB, de los cuales
+(61 días de los 300 usuarios con reloj): los datos que procesa pesan 296 MB, de los cuales
 115.5 MB son mediciones y 178.7 MB recetas (Paso 1), y bronze y silver
 tardan 20.6 s, de modo que no hace falta una muestra. El README explica cómo
 obtener los datos y ejecutarlo.
@@ -121,7 +122,7 @@ una?} Seis reglas, sobre las 15540132 mediciones leídas de 1449 archivos:
 \begin{tabularx}{\textwidth}{|L{2.9cm}|Y|>{\RaggedRight\arraybackslash}p{3.6cm}|}\hline
 \enc{\textbf{Regla}} & \enc{\textbf{Qué hace y qué consecuencia tiene}} &
 \enc{\textbf{Registros}}\\\hline
-Tipos & Convierte a un solo tipo las marcas de tiempo en
+Tipos & Al leer bronze, convierte a un solo tipo las marcas de tiempo en
 ISO 8601 y en milisegundos de los dos relojes; descarta las mediciones sin
 reloj o cuya marca no se puede convertir & 0\\\hline
 Claves que no calzan & Descarta las mediciones de relojes que no están en
@@ -141,7 +142,7 @@ Marca la frecuencia fuera de ese rango y la deja fuera del promedio de
 reposo; cuenta los pasos y calorías negativos & 0\\\hline
 Atrasos & Guarda cada medición en el día en que se midió, no en el que llegó. Más
 de 1 hora de atraso significa que llega en un archivo horario posterior &
-8957451 (59.0\% de las 15194533 sin repetidos) llegan más de 1 hora después de medirse; 2185094, otro día UTC (hasta 4 días)\\\hline
+8957451 (59.0\% de las 15194533 sin repetidos) llegan más de 1 hora después de medirse; 2185094, otro día UTC (hasta 4 días de calendario)\\\hline
 \end{tabularx}
 \endgroup
 
@@ -157,7 +158,7 @@ particionados por mes:
   \item \textbf{\texttt{hecho\_usuario\_dia}:} 17497 filas, una por usuario y
   día local con mediciones o comidas. En los 1167 días con comidas pero sin
   mediciones (674 anteriores a la primera vinculación de un reloj y 493
-  posteriores), los pasos quedan nulos y no en cero, porque el
+  posteriores a esa vinculación), los pasos quedan nulos y no en cero, porque el
   reloj no midió.
   \item \textbf{Frecuencia en reposo:} el promedio entre las 2:00 y las 4:59
   hora local fuera de sesiones (E1), en horas con al menos media hora de
@@ -179,18 +180,19 @@ nombre: 469 nombres corresponden a dos o más recetas.
 \begin{itemize}
   \item \textbf{Consulta 4, hábitos por cuartil:} los 216 usuarios se ordenan
   por frecuencia en reposo en cuartiles de 54, de 51.4 (cuartil 1, el mejor
-  indicador) a 69.3 latidos por minuto. Las cifras son promedios diarios. La
+  indicador) a 69.3 latidos por minuto. Las cifras son promedios diarios sobre los días con frecuencia en reposo;
+  los nutrientes, sobre los de esos días con comidas registradas. La
   actividad no ordena a los cuartiles: el cuartil 1 camina 8515 pasos diarios
   y el cuartil 4, 8822; el que menos camina es el cuartil 2 (8070). El cuartil
   4 consume más sodio (4588 mg), grasa saturada (53.6 g) y fibra (18.1 g) que
   los otros tres.
   \item \textbf{Consulta 5, pasos semanales por modelo:} en las 8 semanas completas (2007-W50 y 2008-W07 tienen menos de la
-  mitad de las filas), la diferencia va de 23 a 320 pasos, a lo más el 3.8\%, y
-  FitBand 2 supera a Pulso S en 5. Esa diferencia es del mismo tamaño que la
-  que separa al cuartil 1 del 4 en la consulta 4 (307 pasos), y la consulta 5
-  no muestra cuántos usuarios de cada modelo tiene cada cuartil. Por lo tanto,
-  la consulta 4 no permite descartar que el modelo de reloj explique sus
-  diferencias de pasos.
+  mitad de las filas), la diferencia entre FitBand 2 y Pulso S cambia de signo
+  semana a semana, de $-273$ a $+320$ pasos, y en promedio es de 55 pasos a favor
+  de FitBand 2. Aun si un cuartil tuviera solo usuarios de un modelo y otro
+  solo del otro, el modelo movería su diferencia unos 55 pasos, menos que los
+  307 que separan al cuartil 1 del 4 en la consulta 4. Por lo tanto, la
+  consulta 4 puede juntar los dos modelos sin corregir sus pasos.
   \item \textbf{Consulta 6, recetas más preparadas por cuartil:} ninguna receta se repite más de 4 veces en un
   cuartil, entre 15889 comidas de usuarios con cuartil. El ranking de recetas
   no distingue a los cuartiles.
@@ -218,8 +220,10 @@ Son medianas de 7 ejecuciones en el contenedor (12 CPU y 10.2 GB de memoria).
   mejor\textquotedbl{}, con \textquotedbl{}Menos espacio y menos bytes
   leídos\textquotedbl{}.}.
   \item \textbf{Poda de particiones:} no participa en esta medición. La
-  consulta pide el período completo y lee los 3 meses; con un filtro de un
-  mes leería una de las 3 carpetas (deducción por la partición, no medida)\footnote{Hagedorn, \emph{Clase 01}, pág. 40:
+  consulta pide el período completo y lee los 3 meses. Además filtra por
+  \texttt{fecha\_key}, que no es la columna de partición: para podar, tendría
+  que filtrar por \texttt{mes}, y entonces un mes leería una de las 3 carpetas
+  (deducción por la partición, no medida)\footnote{Hagedorn, \emph{Clase 01}, pág. 40:
   el particionamiento reduce los \textquotedbl{}Datos a examinar, si el filtro
   permite podar\textquotedbl{}.}.
 \end{itemize}
@@ -227,9 +231,12 @@ Son medianas de 7 ejecuciones en el contenedor (12 CPU y 10.2 GB de memoria).
 \section{5.4 ¿Realmente necesitamos Big Data?}
 
 \pregunta{¿Qué volumen tendría la app con todos los usuarios de Food.com con
-reloj, a 1 y 3 años, y en un escenario x100?} Supuesto, como cota superior: los 271907
+reloj, a 1 y 3 años, y en un escenario x100?} Supuesto: los 271907
 usuarios que reseñan en Food.com tienen reloj y generan, como los 300 actuales, 849.2
-mediciones por día. El escenario x100 multiplica esos usuarios por 100 y se estima a 3 años, el
+mediciones por día. Esa tasa reparte las mediciones en todos los días del
+período, también los días antes de vincular el reloj; por día con mediciones
+son 951.6 (15540132 en 16330 días, Paso 4), de modo que las cifras pueden
+quedar hasta 12\% bajo. El escenario x100 multiplica esos usuarios por 100 y se estima a 3 años, el
 caso más grande. El lote diario son las mediciones recibidas en un día (5.1), y
 su tiempo cuenta bronze y silver, no gold. Los
 tamaños y tiempos se extrapolan en forma lineal desde la corrida del notebook
@@ -260,7 +267,8 @@ un servidor con más memoria; con el volumen x100, no.
 \begin{itemize}
   \item \textbf{Memoria:} es el primer límite del contenedor, porque las
   tareas de bronze y silver leen las mediciones a tablas en memoria. Supuesto:
-  la memoria crece en forma lineal con las mediciones.
+  la memoria crece en forma lineal con las mediciones; no se probó si DuckDB
+  puede seguir usando disco cuando le falta memoria.
   \begin{itemize}
     \item Hoy: el proceso del notebook llegó a 6.1 GB de 10.2 GB, el pico de
     todas sus tareas, con 15540132 mediciones.
@@ -293,10 +301,11 @@ aportes de cada país\textquotedbl{}.}:
   y día, y promediar la frecuencia cardíaca por usuario, día y hora; juntar
   por usuario y día los agregados de mediciones, sesiones y comidas; y ordenar
   a los usuarios en cuartiles, que lleva todos los perfiles a una sola
-  partición, aunque son solo 216 filas.
-  \item \textbf{Sin shuffle, con broadcast:} unir las mediciones con los 315
-  relojes (para conocer usuario, modelo y zona horaria) y con las sesiones del
-  día, unas 71 mil con todos los usuarios de Food.com (para excluir de la frecuencia en reposo las mediciones de una
+  partición: hoy 216 filas y, con todos los usuarios de Food.com, unas 196 mil.
+  \item \textbf{Sin shuffle, con broadcast:} unir las mediciones con los relojes
+  (para conocer usuario, modelo y zona horaria), unos 285 mil con todos los
+  usuarios de Food.com, y con las sesiones del día, unas 71 mil (4792 sesiones
+  de 300 usuarios en 61 días, llevadas a 271907 usuarios) (para excluir de la frecuencia en reposo las mediciones de una
   sesión), y las comidas con las recetas, si antes se reduce
   el catálogo de 522517 recetas a las 20654 que aparecen en las comidas, como
   \texttt{dim\_receta}: copiar la tabla pequeña a cada nodo evita redistribuir
@@ -313,7 +322,7 @@ aportes de cada país\textquotedbl{}.}:
 
 \pregunta{¿Justifica hoy el caso un procesamiento distribuido?} No. Se
 justificaría recién en el escenario x100: los 3 años ocuparían unos 275 TB y
-volver a procesarlos tardaría 388 días en una máquina. Hoy los datos pesan 296 MB (5.2) y el pipeline tarda 20.6 s en bronze y
+volver a procesarlos tardaría 388 días en una máquina. Hoy los datos que procesa pesan 296 MB (5.2) y el pipeline tarda 20.6 s en bronze y
 silver; con todos los usuarios de Food.com, el lote diario cabe en un servidor de
 128 GB de memoria.
 

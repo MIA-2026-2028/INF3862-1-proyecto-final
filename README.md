@@ -63,6 +63,9 @@ uv sync
 uv run jupyter lab
 ```
 
+El notebook de la E2 mide CPU y memoria con funciones de Linux, por lo que se
+ejecuta en el contenedor.
+
 ## Verificar las cifras del informe E1
 
 Con el entorno levantado y los datos ubicados, desde la raíz del repositorio:
