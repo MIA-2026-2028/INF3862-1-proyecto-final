@@ -25,4 +25,6 @@
   la copia en CSV de `hecho_usuario_dia` para la medición de la E2 y la tabla
   de modelamiento de la E3.
 
-Se generan con `notebooks/proyecto.ipynb` (ver el README de la raíz).
+Se generan con `notebooks/proyecto.ipynb` (ver el README de la raíz), sobre
+los datos completos, sin muestra: pesan 296 MB (ver
+`decisiones.md`).
