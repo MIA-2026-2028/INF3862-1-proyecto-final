@@ -92,7 +92,9 @@ entrega, `entregas/E<n>/src/` guarda una copia fija del notebook con solo
 las secciones de esa entrega, ejecutada desde esa carpeta, y los módulos que
 usa: esa copia importa los módulos de su propia carpeta, de modo que sigue
 corriendo aunque `src/` cambie en la entrega siguiente. La copia no se edita a
-mano; un cambio se hace en `src/` o `notebooks/` y se vuelve a copiar.
+mano; un cambio se hace en `src/` o `notebooks/` y se vuelve a copiar. La
+copia de la E2 se ejecuta con el mismo comando, cambiando la carpeta por
+`/proyecto/entregas/E2/src` y el notebook por `notebook_e2.ipynb`.
 
 ## Generar los informes PDF
 
