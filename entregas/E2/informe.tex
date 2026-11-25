@@ -176,13 +176,16 @@ particionados por mes:
 \end{itemize}
 
 \pregunta{¿Qué responden las tres consultas analíticas de la E1?} Corren sobre
-Parquet con el SQL del anexo A de la E1. El único ajuste es que la consulta 6
-agrupa también por la clave de la receta, para no juntar recetas con el mismo
-nombre: 469 nombres corresponden a dos o más recetas.
+Parquet con el SQL del anexo A de la E1. Los ajustes: el período completo en lugar de
+\texttt{:desde} y \texttt{:hasta}; columnas de conteo y redondeo (usuarios por
+cuartil en la 4, filas por semana y modelo en la 5); y, en la 6, la clave de la
+receta, para no juntar recetas con el mismo nombre: 469 nombres corresponden a
+dos o más recetas.
 \begin{itemize}
   \item \textbf{Consulta 4, hábitos por cuartil:} los 216 usuarios se ordenan
   por frecuencia en reposo en cuartiles de 54, de 51.4 (cuartil 1, el mejor
-  indicador) a 69.3 latidos por minuto. Las cifras son promedios diarios sobre los días con frecuencia en reposo;
+  indicador) a 69.3 latidos por minuto. Las cifras son promedios por cuartil de los promedios diarios de cada
+  usuario, sobre los días con frecuencia en reposo;
   los nutrientes, sobre los de esos días con comidas registradas. La
   actividad no ordena a los cuartiles: el cuartil 1 camina 8515 pasos diarios
   y el cuartil 4, 8822; el que menos camina es el cuartil 2 (8070). El cuartil
@@ -190,10 +193,11 @@ nombre: 469 nombres corresponden a dos o más recetas.
   los otros tres.
   \item \textbf{Consulta 5, pasos semanales por modelo:} en las 8 semanas completas (2007-W50 y 2008-W07 tienen 80 y 314 filas
   de FitBand 2, frente a 595 a 751 en las demás), la diferencia entre FitBand 2
-  y Pulso S es negativa en 3 semanas y positiva en 5, de $-273$ a $+320$ pasos, y en promedio es de 55 pasos a favor
-  de FitBand 2. Aun si un cuartil tuviera solo usuarios de un modelo y otro
-  solo del otro, el modelo movería su diferencia unos 55 pasos, menos que los
-  307 que separan al cuartil 1 del 4 en la consulta 4. Por lo tanto, la
+  y Pulso S es negativa en 3 semanas y positiva en 5, de $-273$ a $+320$ pasos, y, ponderando cada semana por sus filas,
+  FitBand 2 registra 52 pasos más que Pulso S en el período. Aun si un cuartil
+  tuviera solo usuarios de un modelo y otro solo del otro, el modelo movería su
+  diferencia unos 52 pasos, menos que los 307 que separan al cuartil 1 del 4
+  en la consulta 4, que también promedia todo el período. Por lo tanto, la
   consulta 4 puede juntar los dos modelos sin corregir sus pasos.
   \item \textbf{Consulta 6, recetas más preparadas por cuartil:} ninguna receta se repite más de 4 veces en un
   cuartil, entre 15889 comidas de usuarios con cuartil. El ranking de recetas
@@ -279,17 +283,17 @@ un servidor con más memoria; con el volumen x100, no.
     \item Food.com: un lote diario tiene 15 veces más mediciones que los 61
     días actuales juntos y necesitaría unos 91 GB. No cabe en el contenedor, pero sí en un servidor de
     128 GB (supuesto de tamaño): basta con escalamiento vertical, una máquina más grande.
-    \item x100: el lote diario necesitaría unos 9100 GB de memoria, más de
-    lo que tiene una máquina.
+    \item x100: el lote diario necesitaría unos 9100 GB de memoria, 71
+    veces el servidor de 128 GB del supuesto.
   \end{itemize}
   \item \textbf{Disco:} a 3 años, bronze y silver suman 2747.17 GB con los
-  usuarios de Food.com, que caben en los discos de una máquina, y unos 275
-  TB en el escenario x100, que no caben en una máquina.
+  usuarios de Food.com, que caben en los discos de un servidor, y unos 275
+  TB en el escenario x100, 100 veces más.
   \item \textbf{Tiempo:} el lote diario tardaría 5.10 minutos, y volver a
-  procesar los 3 años, unas 93.1 horas, casi 4 días, aceptable para un reproceso
+  procesar los 3 años, lote por lote para que cada uno quepa en memoria, unas
+  93.1 horas, casi 4 días, aceptable para un reproceso
   que solo se hace cuando cambia una regla. En el escenario x100, el lote diario
-  tardaría 510.14 minutos: todavía termina antes del día siguiente, pero volver
-  a procesar los 3 años tardaría unas 9309.97 horas (388 días).
+  tardaría 510.14 minutos si cupiera en memoria, y volver a procesar los 3 años tardaría unas 9309.97 horas (388 días).
 \end{itemize}
 
 \pregunta{Si se llevara a Spark, ¿qué operaciones provocarían shuffle y cómo se
@@ -314,17 +318,19 @@ aportes de cada país\textquotedbl{}.}:
   la grande\footnote{Hagedorn, \emph{Clase 04}, pág. 21: \textquotedbl{}Con
   broadcast, mover la tabla pequeña evita redistribuir la grande para este
   join\textquotedbl{}.}.
-  \item \textbf{Partición propuesta en Spark:} repartir en memoria las
-  mediciones de cada lote por reloj (no como carpetas en disco, que siguen por
-  fecha de medición). Todas las copias de una medición y todas las mediciones
-  de un reloj quedan en la misma partición, de modo que quitar repetidos y
-  sumar pasos por reloj y día local no mueve datos. Solo se mueven las sumas
-  diarias por reloj, una fila por reloj y día, para juntarlas por usuario.
+  \item \textbf{Partición propuesta en Spark:} repartir las mediciones de
+  cada lote por reloj apenas se leen. Ese reparto es un shuffle de todo el
+  lote, pero uno solo: después, todas las copias de una medición y todas las
+  mediciones de un reloj están en la misma partición, de modo que quitar
+  repetidos y sumar pasos por reloj y día local ya no mueven datos. Luego solo
+  se mueven las sumas diarias por reloj, una fila por reloj y día, para
+  juntarlas por usuario.
 \end{itemize}
 
 \pregunta{¿Justifica hoy el caso un procesamiento distribuido?} No. Se
-justificaría recién en el escenario x100: los 3 años ocuparían unos 275 TB y
-volver a procesarlos tardaría 388 días en una máquina. Hoy los datos que procesa pesan 296 MB (5.2) y el pipeline tarda 20.6 s en bronze y
+justificaría recién en el escenario x100: volver a procesar los 3 años tardaría 388
+días en una máquina, y su lote diario necesitaría 71 veces la memoria del
+servidor de 128 GB. Hoy los datos que procesa pesan 296 MB (5.2) y el pipeline tarda 20.6 s en bronze y
 silver; con todos los usuarios de Food.com, el lote diario cabe en un servidor de
 128 GB de memoria.
 
