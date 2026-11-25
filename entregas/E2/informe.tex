@@ -18,7 +18,7 @@ Primero, corregir una regla de calidad (por ejemplo, el mínimo de mediciones
 por hora de la frecuencia en reposo) o la unificación de los dos modelos de
 reloj, que envían los mismos campos con nombres y formatos distintos, exige
 recalcular desde los originales. Segundo, el destino puede transformar: DuckDB
-procesa bronze y silver en 16.4 s (5.2), de modo que no hace falta un entorno
+procesa bronze y silver en 20.8 s (5.2), de modo que no hace falta un entorno
 de transformación previo\footnote{Hagedorn, \emph{Clase 02}, pág. 26, sobre
 ELT: \textquotedbl{}El destino debe poder procesar y gobernar los
 datos\textquotedbl{}.}.
@@ -99,7 +99,7 @@ El notebook \texttt{notebooks/proyecto.ipynb} corre de principio a fin con
 DuckDB, en el contenedor del repositorio, sobre los datos completos del curso
 (61 días de los 300 usuarios con reloj): el lote pesa 296 MB, de los cuales
 115.5 MB son mediciones y 178.7 MB recetas (E1), y bronze y silver
-tardan 16.4 s, de modo que no hace falta una muestra. El README explica cómo
+tardan 20.8 s, de modo que no hace falta una muestra. El README explica cómo
 obtener los datos y ejecutarlo.
 
 \pregunta{¿Qué reglas de calidad se aplican y cuántos registros afecta cada
@@ -132,7 +132,7 @@ Atrasos & Guarda cada medición en el día en que se midió, no en el que llegó
 
 La E1 cuenta 357927 frecuencias nulas porque las cuenta antes de quitar los
 repetidos. Silver queda con 15194533 mediciones en 61 particiones por fecha de
-medición (52.3 MB, frente a 115.5 MB de JSON comprimido en bronze), 4792
+medición (52.1 MB, frente a 115.5 MB de JSON comprimido en bronze), 4792
 sesiones y 22058 comidas.
 
 \pregunta{¿Cómo se construyen la tabla de hechos y las dimensiones?} Con los
@@ -180,8 +180,8 @@ diagnósticos.
 \section{5.3 Medir y explicar}
 
 \pregunta{¿Cuánto tarda la consulta 4 sobre CSV y sobre Parquet, y por qué?}
-Sobre Parquet tarda 29.01 ms, 10.1 veces menos que sobre CSV (293.42 ms), y
-ocupa 0.53 MB, 4.1 veces menos que el CSV (2.15 MB), con el mismo resultado.
+Sobre Parquet tarda 32.17 ms, 7.9 veces menos que sobre CSV (254.43 ms), y
+ocupa 0.52 MB, 4.1 veces menos que el CSV (2.15 MB), con el mismo resultado.
 Son medianas de 7 ejecuciones en el contenedor (12 CPU y 10.2 GB de memoria).
 \begin{itemize}
   \item \textbf{Organización por columnas:} la consulta usa 8 de las 18
@@ -210,7 +210,7 @@ reloj, a 1 y 3 años, y en un escenario x100?} Supuesto: los 271907 usuarios
 que reseñan en Food.com tienen reloj y generan, como los 300 actuales, 849.2
 mediciones por día. El escenario x100 multiplica esos usuarios por 100. Los
 tamaños y tiempos se extrapolan en forma lineal desde la corrida del notebook
-(7.43 bytes por medición en bronze y 3.43 en silver; 16.4 s de bronze y silver
+(7.43 bytes por medición en bronze y 3.43 en silver; 20.8 s de bronze y silver
 para 15540132 mediciones): son estimaciones, no mediciones. Bronze y silver
 cuentan solo las mediciones, que son las que crecen con los usuarios.
 
@@ -220,12 +220,12 @@ cuentan solo las mediciones, que son las que crecen con los usuarios.
 \enc{\textbf{Bronze}} & \enc{\textbf{Silver}} & \enc{\textbf{Lote diario}}\\\hline
 Hoy: 300 usuarios, 61 días & 0.25 millones & 0.02 mil millones & 0.12 GB &
 0.05 GB & menos de 1 s\\\hline
-Food.com, 1 año & 230.9 millones & 84.28 mil millones & 626.39 GB & 289.41 GB
-& 4.1 min\\\hline
-Food.com, 3 años & 230.9 millones & 252.84 mil millones & 1879.17 GB & 868.22
-GB & 4.1 min\\\hline
+Food.com, 1 año & 230.9 millones & 84.28 mil millones & 626.39 GB & 289.33 GB
+& 5.15 min\\\hline
+Food.com, 3 años & 230.9 millones & 252.84 mil millones & 1879.17 GB & 868.00
+GB & 5.15 min\\\hline
 Food.com x100, 3 años & 23090 millones & 25283.55 mil millones & 187916.5 GB &
-86822.28 GB & 406.1 min\\\hline
+86799.82 GB & 515.09 min\\\hline
 \end{tabularx}
 \endgroup
 
@@ -234,21 +234,21 @@ por qué recurso, dejaría de alcanzar?} Con todos los usuarios de Food.com, sí
 si procesa cada archivo horario por separado; con el volumen x100, no.
 \begin{itemize}
   \item \textbf{Memoria:} es el primer límite del diseño actual. Bronze y
-  silver guardan las mediciones en tablas en memoria, y la corrida usó 6.1 GB
+  silver guardan las mediciones en tablas en memoria, y la corrida usó 6.0 GB
   de 10.2 GB con 15540132 mediciones. Un lote diario con todos los usuarios
   tiene 15 veces más mediciones: extrapolando en forma lineal, necesitaría
-  unos 91 GB, nueve veces la memoria del contenedor. La corrección es
+  unos 89 GB, casi nueve veces la memoria del contenedor. La corrección es
   procesar cada archivo horario por separado (9.6 millones de mediciones,
   menos que los 61 días actuales) y escribirlo directo en Parquet. En el
   escenario x100, un solo archivo horario tendría 962.1 millones de
-  mediciones y necesitaría unos 378 GB: ya no cabe en la memoria de una
+  mediciones y necesitaría unos 371 GB: ya no cabe en la memoria de una
   máquina.
-  \item \textbf{Disco:} a 3 años, bronze y silver suman 2747.39 GB, de modo
+  \item \textbf{Disco:} a 3 años, bronze y silver suman 2747.17 GB, de modo
   que hace falta una máquina con varios TB de disco.
-  \item \textbf{Tiempo:} el lote diario tardaría 4.1 minutos, y volver a
-  procesar los 3 años, unas 74.1 horas. En el escenario x100, el lote diario
-  tardaría 406.1 minutos y volver a procesar los 3 años, unas 7411.8 horas
-  (309 días).
+  \item \textbf{Tiempo:} el lote diario tardaría 5.15 minutos, y volver a
+  procesar los 3 años, unas 94.0 horas. En el escenario x100, el lote diario
+  tardaría 515.09 minutos y volver a procesar los 3 años, unas 9400.35 horas
+  (392 días).
 \end{itemize}
 
 \pregunta{Si se llevara a Spark, ¿qué operaciones provocarían shuffle y cómo se
@@ -278,12 +278,12 @@ aportes de cada país\textquotedbl{}.}:
   usuario.
 \end{itemize}
 
-\pregunta{¿Justifica hoy el caso un procesamiento distribuido?} No todavía.
-Los datos actuales pesan 296 MB (E1) y el pipeline tarda 16.4 s en bronze y silver
-en una máquina. Con todos los usuarios de Food.com, el lote diario sigue
-cabiendo en una máquina si se procesa por archivo horario. Spark se justifica en
-el escenario x100: un solo archivo horario necesitaría unos 378 GB de memoria
-y volver a procesar los 3 años tardaría 309 días en una máquina.
+\pregunta{¿Justifica hoy el caso un procesamiento distribuido?} No. Se
+justificaría recién en el escenario x100: un solo archivo horario necesitaría
+unos 371 GB de memoria y volver a procesar los 3 años tardaría 392 días en una
+máquina. Hoy los datos pesan 296 MB (E1) y el pipeline tarda 20.8 s en bronze y
+silver; con todos los usuarios de Food.com, el lote diario sigue cabiendo en una
+máquina si se procesa por archivo horario.
 
 \anexo{1}{Bibliografía}
 

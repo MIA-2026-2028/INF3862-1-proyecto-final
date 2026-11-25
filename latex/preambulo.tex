@@ -1,12 +1,14 @@
-% Preámbulo común de los informes E1, E2 y E3, con aspecto de Word: Calibri,
+% Preámbulo común de los informes E1, E2 y E3, con aspecto de Word: Times New Roman,
 % paleta del tema de Office, bandas y portada.
 % Cada informe lo carga con \input{../../latex/preambulo.tex}.
 %   \portada[Alumnos]{sigla y curso}{tipo de entrega}{título}{autores}{fecha}
 \usepackage[spanish,es-tabla]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-% Carlito: mismas medidas que Calibri, la fuente de Word
-\usepackage[sfdefault,lining]{carlito}
+% Times: mismas medidas que Times New Roman, también en las fórmulas
+\usepackage{newtxtext,newtxmath}
+% Inconsolata: monoespaciada con negrita, para código dentro de etiquetas en negrita
+\usepackage[scaled=0.95,varqu]{zi4}
 \usepackage[letterpaper,margin=2.2cm,top=2.8cm,bottom=2.8cm]{geometry}
 \usepackage{xcolor}
 \usepackage{graphicx}
