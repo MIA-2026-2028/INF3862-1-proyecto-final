@@ -15,3 +15,16 @@
 - `wearable/`: datos sintéticos de relojes inteligentes creados por el equipo
   docente del curso (`dispositivos.csv`, `mediciones/`, `sesiones.jsonl`,
   `comidas.csv`). El diccionario de datos está en `wearable/LEEME.md`.
+
+## Capas que genera el pipeline
+
+- `datos_proyecto_INF3862/`: bronze, los archivos del curso sin cambios.
+- `silver/`: mediciones limpias en Parquet, particionadas por fecha de
+  medición, y sesiones y comidas que cumplen las reglas de calidad.
+- `gold/`: hechos y dimensiones de la E1 en Parquet (los hechos, por mes),
+  la copia en CSV de `hecho_usuario_dia` para la medición de la E2 y la tabla
+  de modelamiento de la E3.
+
+Se generan con `notebooks/proyecto.ipynb` o con la copia de cada entrega (`entregas/E2/src/notebook_e2.ipynb`; ver el README de la raíz), sobre
+los datos completos, sin muestra: los datos que procesa pesan 296 MB, y `reviews.parquet` solo se lee para contar usuarios (ver
+`decisiones.md`).

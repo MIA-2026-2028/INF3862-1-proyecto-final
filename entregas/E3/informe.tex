@@ -16,10 +16,10 @@ Como análisis secundario, construimos una tabla para estimar la frecuencia card
 \section{Validación temporal y resultado}
 Formamos 10,710 ejemplos usuario-día con siete días consecutivos de características y un objetivo válido para el día siguiente. Fijamos el corte temporal en el 2 de febrero de 2008: usamos 8,445 ejemplos anteriores para entrenar y 2,265 fechas posteriores para evaluar. Los 216 usuarios aparecen en ambos periodos; por ello, medimos el desempeño en fechas futuras de usuarios ya observados y no la capacidad de generalizar a personas nuevas. Evitamos incluir información de fechas futuras en las variables de cada ejemplo.
 
-\begin{center}\small
-\begin{tabular}{lrrr}\hline
-Modelo & MAE (bpm) & RMSE (bpm) & $R^2$\\\hline
-Mediana de entrenamiento & 5.6389 & 7.0887 & -0.0040\\
+\begin{center}\small\iniciartabla
+\begin{tabular}{|l|r|r|r|}\hline
+\enc{\textbf{Modelo}} & \enc{\textbf{MAE (bpm)}} & \enc{\textbf{RMSE (bpm)}} & \enc{\textbf{$R^2$}}\\\hline
+Mediana de entrenamiento & 5.6389 & 7.0887 & -0.0040\\\hline
 Regresión lineal estandarizada & 5.6710 & 7.1426 & -0.0193\\\hline
 \end{tabular}
 \end{center}
@@ -56,7 +56,7 @@ Versionado y operación & \texttt{uv.lock}, manifiesto y reproceso: reproducible
 \caption{Arquitectura final elegida para el volumen observado.}
 \end{figure}
 
-Estimamos un costo incremental local de US\$0--30 mensuales si reutilizamos el equipo, principalmente por electricidad y respaldos; esta cifra excluye las horas de trabajo. Para la alternativa administrada estimamos inicialmente US\$50--200 al mes para almacenamiento, catálogo, procesamiento ocasional y consultas de pocos usuarios. Los principales factores son la frecuencia de cómputo, el volumen retenido, los datos consultados, la transferencia y el uso de la plataforma de visualización. Son órdenes de magnitud para comparar, no cotizaciones de proveedores. No incluimos por ahora Spark administrado, un almacén de datos, MLflow ni recomendaciones automáticas: el volumen, el uso y la evidencia predictiva no justifican su costo ni complejidad.
+Estimamos un costo incremental local de US\$0 a 30 mensuales si reutilizamos el equipo, principalmente por electricidad y respaldos; esta cifra excluye las horas de trabajo. Para la alternativa administrada estimamos inicialmente US\$50 a 200 al mes para almacenamiento, catálogo, procesamiento ocasional y consultas de pocos usuarios. Los principales factores son la frecuencia de cómputo, el volumen retenido, los datos consultados, la transferencia y el uso de la plataforma de visualización. Son órdenes de magnitud para comparar, no cotizaciones de proveedores. No incluimos por ahora Spark administrado, un almacén de datos, MLflow ni recomendaciones automáticas: el volumen, el uso y la evidencia predictiva no justifican su costo ni complejidad.
 \section{Operación, recuperación y gobierno}
 Proponemos programar la carga diaria y publicar los resultados después de validar su calidad. El prototipo que preparamos se ejecuta manualmente como un lote completo. Para una versión productiva recomendamos registrar fechas, conteos y errores; al reintentar, reemplazar la partición afectada para evitar duplicados. Los lotes tardíos requerirían recalcular las fechas de medición y los días de usuario afectados. Ante una falla, conservaríamos la última partición publicada y reprocesaríamos los datos originales. También monitorearíamos retrasos, duplicados, valores nulos de frecuencia cardíaca, cobertura nocturna, comidas sin receta y cambios en las distribuciones por modelo. Las alertas iniciarían una revisión, sin activar recomendaciones ni reentrenamiento automático.
 

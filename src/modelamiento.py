@@ -1,4 +1,7 @@
-"""Dataset y modelo base E3, con partición por usuario y sin fuga temporal."""
+"""Dataset y modelo base E3, con partición temporal y sin fuga de información.
+
+Lee hecho_usuario_dia de la capa gold que produce src/pipeline.py.
+"""
 
 from __future__ import annotations
 
@@ -10,6 +13,8 @@ import statistics
 from datetime import date, timedelta
 from pathlib import Path
 
+import duckdb
+
 
 BASE_FEATURES = ["pasos_7d_promedio", "minutos_sesion_7d_promedio", "comidas_7d", "porciones_7d"]
 NUTRIENT_SOURCE = {
@@ -20,11 +25,6 @@ NUTRIENT_SOURCE = {
     "fibra": "fibra_7d",
     "proteina": "proteina_7d",
 }
-
-
-def read_csv(path: Path):
-    with path.open("r", encoding="utf-8-sig", newline="") as stream:
-        return list(csv.DictReader(stream))
 
 
 def num(value):
@@ -100,14 +100,17 @@ def predict_ols(row, beta, means, scales, feature_names):
 
 def run_model(repo_root: str | Path | None = None, input_path: str | Path | None = None, output_dir: str | Path | None = None):
     root = Path(repo_root or Path(__file__).resolve().parents[1]).resolve()
-    source = Path(input_path) if input_path else root / "datos" / "processed" / "e2" / "fact_usuario_dia.csv"
-    output = Path(output_dir) if output_dir else root / "datos" / "processed" / "e3"
+    source = Path(input_path) if input_path else root / "datos" / "gold" / "hecho_usuario_dia"
+    output = Path(output_dir) if output_dir else root / "datos" / "gold" / "modelamiento"
     if not source.exists():
-        raise FileNotFoundError(f"No encuentro {source}; ejecuta primero E2.")
-    raw_rows = read_csv(source)
+        raise FileNotFoundError(f"No encuentro {source}; ejecuta primero el pipeline de E2.")
+    consulta = duckdb.sql(f"""
+        select * replace (usuario_key::varchar as usuario_key, strftime(fecha_key, '%Y-%m-%d') as fecha_key)
+        from read_parquet('{source}/**/*.parquet', hive_partitioning = true)""")
+    raw_rows = [dict(zip(consulta.columns, fila)) for fila in consulta.fetchall()]
     by_user = {}
     for row in raw_rows:
-        by_user.setdefault(row["usuario_id"], {})[date.fromisoformat(row["fecha_local"])] = row
+        by_user.setdefault(row["usuario_key"], {})[date.fromisoformat(row["fecha_key"])] = row
 
     features = list(BASE_FEATURES)
     # A blank nutrient on a day without meal events means zero nutrients were
@@ -131,6 +134,9 @@ def run_model(repo_root: str | Path | None = None, input_path: str | Path | None
             if target is None:
                 continue
             window = [user_days[d] for d in window_dates]
+            # un día sin mediciones del reloj no tiene pasos: la ventana no se usa
+            if any(num(r.get("pasos")) is None for r in window):
+                continue
             feat = {
                 "pasos_7d_promedio": statistics.fmean(num(r.get("pasos")) or 0.0 for r in window),
                 "minutos_sesion_7d_promedio": statistics.fmean(num(r.get("minutos_sesion")) or 0.0 for r in window),
@@ -154,7 +160,7 @@ def run_model(repo_root: str | Path | None = None, input_path: str | Path | None
             if not nutrient_window_complete:
                 continue
             dataset.append({
-                "usuario_id": user_id,
+                "usuario_key": user_id,
                 "fecha_features_hasta": days[idx].isoformat(),
                 "fecha_objetivo": days[idx + 1].isoformat(),
                 **feat,
@@ -174,8 +180,8 @@ def run_model(repo_root: str | Path | None = None, input_path: str | Path | None
 
     train_rows = [r for r in dataset if r["particion"] == "train"]
     test_rows = [r for r in dataset if r["particion"] == "test"]
-    train_users = sorted({r["usuario_id"] for r in train_rows})
-    test_users = sorted({r["usuario_id"] for r in test_rows})
+    train_users = sorted({r["usuario_key"] for r in train_rows})
+    test_users = sorted({r["usuario_key"] for r in test_rows})
     if not train_rows or not test_rows:
         raise ValueError(f"Partición insuficiente: train={len(train_rows)}, test={len(test_rows)}")
     beta, means, scales = fit_ols(train_rows, features)

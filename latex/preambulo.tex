@@ -1,15 +1,18 @@
-% Preámbulo común de los informes E1, E2 y E3, con aspecto de Word: Calibri,
+% Preámbulo común de los informes E1, E2 y E3, con aspecto de Word: Times New Roman,
 % paleta del tema de Office, bandas y portada.
 % Cada informe lo carga con \input{../../latex/preambulo.tex}.
 %   \portada[Alumnos]{sigla y curso}{tipo de entrega}{título}{autores}{fecha}
 \usepackage[spanish,es-tabla]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-% Carlito: mismas medidas que Calibri, la fuente de Word
-\usepackage[sfdefault,lining]{carlito}
+% Times: mismas medidas que Times New Roman, también en las fórmulas
+\usepackage{newtxtext,newtxmath}
+% Inconsolata: monoespaciada con negrita, para código dentro de etiquetas en negrita
+\usepackage[scaled=0.95,varqu]{zi4}
 \usepackage[letterpaper,margin=2.2cm,top=2.8cm,bottom=2.8cm]{geometry}
 \usepackage{xcolor}
 \usepackage{graphicx}
+\usepackage{float}       % figuras con [H], fijas donde se citan
 \usepackage{array}
 \usepackage{colortbl}
 \usepackage{tabularx}
@@ -22,6 +25,9 @@
 \usepackage{eso-pic}
 \usepackage{titlesec}
 \usepackage{listings}
+% notas al pie al fondo de la página y con sangría francesa
+\usepackage[hang,bottom]{footmisc}
+\setlength{\footnotemargin}{1.2em}
 \usepackage[hidelinks]{hyperref}
 \graphicspath{{../../assets/}}
 
@@ -35,7 +41,7 @@
 \definecolor{grisoffice}{HTML}{7F7F7F}
 \definecolor{vinotinto}{HTML}{7B1E2B}
 
-% texto agregado o cambiado por el asistente, pendiente de revisión del equipo
+% texto nuevo o cambiado, pendiente de revisión del otro integrante
 \newcommand{\nuevo}[1]{\textcolor{vinotinto}{#1}}
 
 % títulos como los estilos de título de Word
@@ -62,6 +68,11 @@
 
 % pregunta que abre una respuesta
 \newcommand{\pregunta}[1]{\textbf{\color{subtitulo}#1}}
+
+% anexo en hoja nueva: "Anexo n" centrado y, debajo, su título algo más grande
+% uso: \anexo{1}{Bibliografía}
+\newcommand{\anexo}[2]{\clearpage
+  {\centering\bfseries\color{subtitulo}{\large Anexo #1}\\[0.8ex]{\Large #2}\par}\vspace{3ex}}
 
 % SQL y pseudocódigo
 \lstset{basicstyle=\ttfamily\small,columns=fullflexible,keepspaces=true,

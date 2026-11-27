@@ -38,7 +38,7 @@ no causas ni recomendaciones médicas.
 | Entrega | Fecha | Contenido |
 |---|---|---|
 | [E1](entregas/E1/informe.pdf) Diseño de datos | 16 de noviembre de 2026 | Objetivo, fuentes, tablas OLTP y OLAP, consultas y arquitectura inicial |
-| [E2](entregas/E2/) Ingesta y procesamiento | 30 de noviembre de 2026 | Pipeline en notebook, capas, calidad y análisis de escala |
+| [E2](entregas/E2/informe.pdf) Ingesta y procesamiento | 30 de noviembre de 2026 | Pipeline con DuckDB, capas bronze, silver y gold, reglas de calidad, medición CSV frente a Parquet y análisis de escala. Notebook: [entregas/E2/src/notebook_e2.ipynb](entregas/E2/src/notebook_e2.ipynb) |
 | [E3](entregas/E3/) Datos para ML y arquitectura final | 14 de diciembre de 2026 | Dataset de modelamiento, modelo base, arquitectura y operación |
 
 ## Preparar el entorno
@@ -63,6 +63,9 @@ uv sync
 uv run jupyter lab
 ```
 
+El notebook de la E2 mide CPU y memoria con funciones de Linux, por lo que se
+ejecuta en el contenedor.
+
 ## Verificar las cifras del informe E1
 
 Con el entorno levantado y los datos ubicados, desde la raíz del repositorio:
@@ -73,6 +76,28 @@ docker compose exec jupyter uv run python entregas/E1/anexos/verificacion_datos.
 
 Sin Docker: `uv run python entregas/E1/anexos/verificacion_datos.py`. Imprime
 el volumen de cada fuente y las cifras del universo del dashboard.
+
+## Ejecutar el pipeline (E2 y E3)
+
+El notebook principal es `notebooks/proyecto.ipynb`. Corre de principio a fin
+el pipeline de `src/pipeline.py` (bronze, silver y gold), las consultas 4, 5
+y 6 de la E1 (`src/consultas.py`), la medición de CSV frente a Parquet, el
+análisis de escala y el modelo base de la E3 (`src/modelamiento.py`). Escribe
+las capas en `datos/silver/` y `datos/gold/`, que git ignora. Con el entorno
+levantado y los datos ubicados:
+
+```bash
+docker compose exec -w /proyecto/notebooks jupyter uv run jupyter nbconvert --to notebook --execute --inplace proyecto.ipynb
+```
+
+También se abre en Jupyter Lab y se ejecuta con "Run All". Al cerrar cada
+entrega, `entregas/E<n>/src/` guarda una copia fija del notebook con solo
+las secciones de esa entrega, ejecutada desde esa carpeta, y los módulos que
+usa: esa copia importa los módulos de su propia carpeta, de modo que sigue
+corriendo aunque `src/` cambie en la entrega siguiente. La copia no se edita a
+mano; un cambio se hace en `src/` o `notebooks/` y se vuelve a copiar. La
+copia de la E2 se ejecuta con el mismo comando, cambiando la carpeta por
+`/proyecto/entregas/E2/src` y el notebook por `notebook_e2.ipynb`.
 
 ## Generar los informes PDF
 
@@ -106,7 +131,9 @@ latex/             preámbulo común de los informes
 assets/            logo de la portada
 datos/README.md    cómo obtener y ubicar los datos
 entregas/E1/       informe.tex, informe.pdf y anexos/verificacion_datos.py
-entregas/E2/       informe.tex, informe.pdf, src/ y anexos
-entregas/E3/       informe.tex, informe.pdf, src/ y anexos
-src/               código reutilizable de los notebooks
+entregas/E2/       informe.tex, informe.pdf y src/ (copia fija del notebook y los módulos)
+entregas/E3/       informe.tex e informe.pdf
+notebooks/         proyecto.ipynb, el notebook principal de E2 y E3
+src/               pipeline.py, consultas.py y modelamiento.py
+datos/             dataset del proyecto (bronze) y capas silver y gold; solo README.md en git
 ```
