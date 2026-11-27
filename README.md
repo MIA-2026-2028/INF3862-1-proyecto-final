@@ -135,5 +135,5 @@ entregas/E2/       informe.tex, informe.pdf y src/ (copia fija del notebook y lo
 entregas/E3/       informe.tex e informe.pdf
 notebooks/         proyecto.ipynb, el notebook principal de E2 y E3
 src/               pipeline.py, consultas.py y modelamiento.py
-datos/             datos del curso (bronze) y capas silver y gold; solo README.md en git
+datos/             dataset del proyecto (bronze) y capas silver y gold; solo README.md en git
 ```
